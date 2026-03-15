@@ -1,0 +1,13 @@
+services:
+  openvlt:
+    build: .
+    container_name: openvlt
+    restart: unless-stopped
+    ports:
+      - "${OPENVLT_PORT:-3456}:3456"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3456
+      - OPENVLT_DB_PATH=/app/data/.openvlt/openvlt.db

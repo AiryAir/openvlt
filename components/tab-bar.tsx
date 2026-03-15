@@ -1,0 +1,126 @@
+"use client"
+
+import * as React from "react"
+import { XIcon, PlusIcon } from "lucide-react"
+import { useTabStore, type Tab } from "@/lib/stores/tab-store"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+
+// Module-level drag state so tab-container can read it
+let draggedTab: Tab | null = null
+export function getDraggedTab() {
+  return draggedTab
+}
+
+/** SVG curve that sits at the bottom-left or bottom-right of the active tab */
+function TabCurve({ side }: { side: "left" | "right" }) {
+  const flip = side === "right"
+  return (
+    <svg
+      className="absolute bottom-0 size-2 fill-background"
+      style={{ [side]: -8 }}
+      viewBox="0 0 8 8"
+      preserveAspectRatio="none"
+    >
+      <path d={flip ? "M 8 8 A 8 8 0 0 1 0 0 L 0 8 Z" : "M 0 8 A 8 8 0 0 0 8 0 L 8 8 Z"} />
+    </svg>
+  )
+}
+
+export function TabBar() {
+  const { tabs, activeTabId, setActiveTab, closeTab, openTab } = useTabStore()
+
+  if (tabs.length === 0) return null
+
+  function handleMouseDown(e: React.MouseEvent, noteId: string) {
+    if (e.button === 1) {
+      e.preventDefault()
+      closeTab(noteId)
+    }
+  }
+
+  function handleDragStart(e: React.DragEvent, tab: Tab) {
+    draggedTab = tab
+    e.dataTransfer.effectAllowed = "move"
+    e.dataTransfer.setData("text/plain", tab.noteId)
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "0.5"
+    }
+  }
+
+  function handleDragEnd(e: React.DragEvent) {
+    draggedTab = null
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "1"
+    }
+  }
+
+  return (
+    <div className="flex h-10 shrink-0 items-end bg-muted">
+      <SidebarTrigger className="mb-1.5 ml-3 mr-2 shrink-0" />
+      <div className="flex min-w-0 flex-1 items-end overflow-x-auto pl-2 scrollbar-none [&::-webkit-scrollbar]:hidden">
+        {tabs.map((tab, index) => {
+          const isActive = tab.noteId === activeTabId
+          const prevIsActive = index > 0 && tabs[index - 1].noteId === activeTabId
+          // Show separator between two inactive tabs (hide next to active tab)
+          const showSeparator = !isActive && !prevIsActive && index > 0
+          return (
+            <React.Fragment key={tab.noteId}>
+              {showSeparator && (
+                <span className="self-center h-4 w-px shrink-0 bg-foreground/8" />
+              )}
+              <button
+                draggable
+                onClick={() => setActiveTab(tab.noteId)}
+                onMouseDown={(e) => handleMouseDown(e, tab.noteId)}
+                onDragStart={(e) => handleDragStart(e, tab)}
+                onDragEnd={handleDragEnd}
+                className={`group/tab relative flex min-w-0 max-w-[200px] shrink-0 items-center gap-1.5 px-3 text-sm transition-all ${
+                  isActive
+                    ? "z-10 h-9 rounded-t-lg bg-background text-foreground"
+                    : "h-8 rounded-t-md bg-transparent text-muted-foreground hover:bg-muted/60"
+                }`}
+              >
+                <span className="truncate">{tab.title}</span>
+                <span
+                  role="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    closeTab(tab.noteId)
+                  }}
+                  className="ml-auto flex size-4.5 shrink-0 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-foreground/5 hover:text-muted-foreground"
+                >
+                  <XIcon className="size-2.5" />
+                </span>
+                {isActive && (
+                  <>
+                    <TabCurve side="left" />
+                    <TabCurve side="right" />
+                  </>
+                )}
+              </button>
+            </React.Fragment>
+          )
+        })}
+        <button
+          onClick={() => {
+            fetch("/api/notes", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: "Untitled" }),
+            })
+              .then((r) => r.json())
+              .then((note) => {
+                openTab(note.id, note.title)
+                window.history.replaceState(null, "", `/notes/${note.id}`)
+                window.dispatchEvent(new Event("openvlt:tree-refresh"))
+              })
+          }}
+          className="mb-1.5 ml-1 shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          title="New tab"
+        >
+          <PlusIcon className="size-3.5" />
+        </button>
+      </div>
+    </div>
+  )
+}

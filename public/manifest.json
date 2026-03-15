@@ -1,0 +1,23 @@
+{
+  "name": "openvlt",
+  "short_name": "openvlt",
+  "description": "Self-hosted, open-source notes app. Markdown files on disk.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#1c1917",
+  "background_color": "#0c0a09",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

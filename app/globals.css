@@ -1,0 +1,894 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.147 0.004 49.25);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.147 0.004 49.25);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.147 0.004 49.25);
+  --primary: oklch(0.508 0.118 165.612);
+  --primary-foreground: oklch(0.979 0.021 166.113);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0.001 106.424);
+  --muted-foreground: oklch(0.553 0.013 58.071);
+  --accent: oklch(0.97 0.001 106.424);
+  --accent-foreground: oklch(0.216 0.006 56.043);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.923 0.003 48.717);
+  --input: oklch(0.923 0.003 48.717);
+  --ring: oklch(0.709 0.01 56.259);
+  --chart-1: oklch(0.845 0.143 164.978);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.596 0.145 163.225);
+  --chart-4: oklch(0.508 0.118 165.612);
+  --chart-5: oklch(0.432 0.095 166.913);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0.001 106.423);
+  --sidebar-foreground: oklch(0.147 0.004 49.25);
+  --sidebar-primary: oklch(0.596 0.145 163.225);
+  --sidebar-primary-foreground: oklch(0.979 0.021 166.113);
+  --sidebar-accent: oklch(0.97 0.001 106.424);
+  --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
+  --sidebar-border: oklch(0.923 0.003 48.717);
+  --sidebar-ring: oklch(0.709 0.01 56.259);
+}
+
+.dark {
+  --background: oklch(0.147 0.004 49.25);
+  --foreground: oklch(0.985 0.001 106.423);
+  --card: oklch(0.216 0.006 56.043);
+  --card-foreground: oklch(0.985 0.001 106.423);
+  --popover: oklch(0.216 0.006 56.043);
+  --popover-foreground: oklch(0.985 0.001 106.423);
+  --primary: oklch(0.432 0.095 166.913);
+  --primary-foreground: oklch(0.979 0.021 166.113);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.268 0.007 34.298);
+  --muted-foreground: oklch(0.709 0.01 56.259);
+  --accent: oklch(0.268 0.007 34.298);
+  --accent-foreground: oklch(0.985 0.001 106.423);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.553 0.013 58.071);
+  --chart-1: oklch(0.845 0.143 164.978);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.596 0.145 163.225);
+  --chart-4: oklch(0.508 0.118 165.612);
+  --chart-5: oklch(0.432 0.095 166.913);
+  --sidebar: oklch(0.216 0.006 56.043);
+  --sidebar-foreground: oklch(0.985 0.001 106.423);
+  --sidebar-primary: oklch(0.696 0.17 162.48);
+  --sidebar-primary-foreground: oklch(0.262 0.051 172.552);
+  --sidebar-accent: oklch(0.268 0.007 34.298);
+  --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.553 0.013 58.071);
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px) rotate(-2deg); }
+  30% { transform: translateX(5px) rotate(1.5deg); }
+  45% { transform: translateX(-4px) rotate(-1deg); }
+  60% { transform: translateX(3px) rotate(0.5deg); }
+  75% { transform: translateX(-2px); }
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * EDITOR LAYOUT ZONES
+ * ══════════════════════════════════════════════════════
+ *
+ * No reserved gutter — markdown markers appear inline on the
+ * active line, pushing text to the right.
+ */
+
+:root {
+  --editor-pad: 16px;
+  --editor-left: var(--editor-pad);
+  --editor-right: 16px;
+  --editor-top: 16px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --editor-pad: 32px;
+    --editor-left: var(--editor-pad);
+    --editor-right: 32px;
+    --editor-top: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --editor-pad: 48px;
+    --editor-left: var(--editor-pad);
+    --editor-right: 48px;
+  }
+}
+
+/* ── Base editor ── */
+.tiptap {
+  outline: none;
+  padding: var(--editor-top) var(--editor-right) 40vh var(--editor-left);
+  min-height: calc(100svh - 3.5rem);
+  position: relative;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}
+
+/* ── Typography ── */
+.tiptap h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  position: relative;
+}
+
+.tiptap h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-top: 0.8em;
+  margin-bottom: 0.4em;
+  position: relative;
+}
+
+.tiptap h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-top: 0.6em;
+  margin-bottom: 0.3em;
+  position: relative;
+}
+
+.tiptap h4,
+.tiptap h5,
+.tiptap h6 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-top: 0.5em;
+  margin-bottom: 0.25em;
+  position: relative;
+}
+
+.tiptap ul {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+  list-style-type: disc;
+}
+
+.tiptap ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+  list-style-type: decimal;
+}
+
+.tiptap li {
+  display: list-item;
+  position: relative;
+}
+
+.tiptap ul ul {
+  list-style-type: circle;
+}
+.tiptap ul ul ul {
+  list-style-type: square;
+}
+
+.tiptap blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: var(--muted-foreground);
+  position: relative;
+}
+
+.tiptap code {
+  background: var(--muted);
+  border-radius: 0.25em;
+  padding: 0.15em 0.3em;
+  font-size: 0.9em;
+}
+
+.tiptap pre {
+  background: var(--muted);
+  border-radius: 0.5em;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.tiptap pre code {
+  background: none;
+  padding: 0;
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * MARKDOWN MARKERS (# ## - 1. >)
+ * Inline: appear at the start of the active line,
+ * pushing text to the right.
+ * ══════════════════════════════════════════════════════
+ */
+
+/* Heading markers: hidden by default, shown inline on active */
+.tiptap h1::before,
+.tiptap h2::before,
+.tiptap h3::before,
+.tiptap h4::before,
+.tiptap h5::before,
+.tiptap h6::before {
+  display: none;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  pointer-events: none;
+  margin-right: 0.5em;
+}
+
+.tiptap h1::before { content: "#"; }
+.tiptap h2::before { content: "##"; }
+.tiptap h3::before { content: "###"; }
+.tiptap h4::before { content: "####"; }
+.tiptap h5::before { content: "#####"; }
+.tiptap h6::before { content: "######"; }
+
+/* Show markers inline on active node */
+.tiptap h1[data-active]::before,
+.tiptap h2[data-active]::before,
+.tiptap h3[data-active]::before,
+.tiptap h4[data-active]::before,
+.tiptap h5[data-active]::before,
+.tiptap h6[data-active]::before {
+  display: inline;
+}
+
+/* Blockquote > marker — inline on active */
+.tiptap blockquote[data-active]::before {
+  content: ">";
+  display: inline;
+  font-family: var(--font-mono);
+  font-weight: 300;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+  pointer-events: none;
+  margin-right: 0.5em;
+  font-size: 0.85em;
+}
+
+/* Active node subtle highlight */
+.tiptap .is-active-node {
+  border-radius: 0.25em;
+  transition: background-color 0.15s ease;
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * CODE BLOCK REVEAL (```)
+ * Show opening/closing fences when cursor is inside
+ * ══════════════════════════════════════════════════════
+ */
+
+.tiptap pre[data-active]::before,
+.tiptap pre[data-active]::after {
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+
+.tiptap pre[data-active]::before {
+  content: "```" attr(data-language);
+  margin-bottom: 0.25em;
+}
+
+.tiptap pre[data-active]::after {
+  content: "```";
+  margin-top: 0.25em;
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * HORIZONTAL RULE REVEAL (---)
+ * Show --- syntax when the rule is active/selected
+ * ══════════════════════════════════════════════════════
+ */
+
+.tiptap hr[data-active] {
+  border: none;
+  background: none;
+  height: auto;
+}
+
+.tiptap hr[data-active]::after {
+  content: "---";
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+  text-align: center;
+  pointer-events: none;
+  font-size: 0.85em;
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * INLINE MARK REVEAL
+ * Show markdown syntax (**, *, ~~, `, [](url)) around
+ * styled text when the cursor is inside it
+ * ══════════════════════════════════════════════════════
+ */
+
+.tiptap .mark-syntax {
+  font-family: var(--font-mono);
+  color: var(--muted-foreground);
+  opacity: 0.5;
+  font-weight: 400;
+  font-style: normal;
+  text-decoration: none;
+  pointer-events: none;
+  user-select: none;
+  font-size: 0.85em;
+  vertical-align: baseline;
+  letter-spacing: -0.02em;
+}
+
+.tiptap .mark-syntax-link {
+  word-break: break-all;
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * HEADING FOLD / COLLAPSE
+ * Inline chevron at the left edge of the heading
+ * ══════════════════════════════════════════════════════
+ */
+
+.heading-fold-chevron {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .heading-fold-chevron {
+    display: inline-flex;
+    position: absolute;
+    left: calc(-1 * var(--editor-pad) / 2);
+    top: 50%;
+    transform: translate(-50%, -50%);
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    min-width: 1em;
+    min-height: 1em;
+    max-width: 1em;
+    max-height: 1em;
+    line-height: 1;
+    box-sizing: border-box;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--muted-foreground);
+    opacity: 0;
+    cursor: pointer;
+    border-radius: 0.2em;
+    transition:
+      opacity 0.15s ease,
+      background-color 0.15s ease;
+    user-select: none;
+    z-index: 1;
+  }
+
+  .heading-fold-chevron svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.15s ease;
+    transform: rotate(90deg);
+  }
+
+  .heading-fold-chevron.is-collapsed svg {
+    transform: rotate(0deg);
+  }
+
+  .heading-fold-chevron:hover {
+    opacity: 1 !important;
+    background-color: var(--accent);
+  }
+
+  /* Show chevron on heading hover */
+  .tiptap h1:hover .heading-fold-chevron,
+  .tiptap h2:hover .heading-fold-chevron,
+  .tiptap h3:hover .heading-fold-chevron,
+  .tiptap h4:hover .heading-fold-chevron,
+  .tiptap h5:hover .heading-fold-chevron,
+  .tiptap h6:hover .heading-fold-chevron {
+    opacity: 0.5;
+  }
+
+  /* Always show chevron when collapsed */
+  .heading-fold-chevron.is-collapsed {
+    opacity: 0.5;
+  }
+} /* close @media (min-width: 640px) for chevron */
+
+/* "..." ellipsis indicator */
+.heading-fold-ellipsis {
+  display: inline-block;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  margin-left: 0.4em;
+  user-select: none;
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  vertical-align: middle;
+}
+
+/* Hidden content below collapsed heading */
+.heading-fold-hidden {
+  display: none !important;
+}
+
+/* Task list styles */
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+
+.tiptap ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 0.25em;
+}
+
+.tiptap ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+/* ── Code syntax highlighting (lowlight / highlight.js classes) ── */
+.tiptap pre code .hljs-keyword,
+.tiptap pre code .hljs-selector-tag,
+.tiptap pre code .hljs-built_in {
+  color: oklch(0.65 0.2 300);
+}
+.tiptap pre code .hljs-string,
+.tiptap pre code .hljs-addition {
+  color: oklch(0.7 0.15 145);
+}
+.tiptap pre code .hljs-number,
+.tiptap pre code .hljs-literal {
+  color: oklch(0.7 0.15 55);
+}
+.tiptap pre code .hljs-comment,
+.tiptap pre code .hljs-quote {
+  color: oklch(0.55 0 0);
+  font-style: italic;
+}
+.tiptap pre code .hljs-function,
+.tiptap pre code .hljs-title {
+  color: oklch(0.7 0.15 230);
+}
+.tiptap pre code .hljs-type,
+.tiptap pre code .hljs-class {
+  color: oklch(0.7 0.12 85);
+}
+.tiptap pre code .hljs-variable,
+.tiptap pre code .hljs-template-variable {
+  color: oklch(0.7 0.15 20);
+}
+.tiptap pre code .hljs-attr,
+.tiptap pre code .hljs-attribute {
+  color: oklch(0.7 0.12 55);
+}
+.tiptap pre code .hljs-deletion {
+  color: oklch(0.6 0.2 25);
+}
+.tiptap pre code .hljs-regexp {
+  color: oklch(0.65 0.15 145);
+}
+.tiptap pre code .hljs-meta {
+  color: oklch(0.6 0.1 250);
+}
+
+/* ── Slash command popup ── */
+.slash-command-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.slash-command-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.slash-command-item:hover,
+.slash-command-item.is-selected {
+  background: var(--accent);
+}
+
+.slash-command-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.slash-command-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.slash-command-title {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.slash-command-description {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+/* ── Sidebar tree: full-width highlights like Obsidian ── */
+/* Remove indentation margins/padding/border from sub-menus */
+[data-sidebar="menu-sub"] {
+  --depth: 1;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  translate: none !important;
+  gap: 1px;
+}
+
+/* Increment depth for nested sub-menus */
+[data-sidebar="menu-sub"] [data-sidebar="menu-sub"] {
+  --depth: 2;
+}
+
+[data-sidebar="menu-sub"] [data-sidebar="menu-sub"] [data-sidebar="menu-sub"] {
+  --depth: 3;
+}
+
+[data-sidebar="menu-sub"]
+  [data-sidebar="menu-sub"]
+  [data-sidebar="menu-sub"]
+  [data-sidebar="menu-sub"] {
+  --depth: 4;
+}
+
+/* Sub-buttons: full-width, no rounded corners, indent with padding-left */
+[data-sidebar="menu-sub"] [data-sidebar="menu-sub-button"] {
+  padding-left: calc(var(--depth) * 24px + 8px);
+  translate: none !important;
+  border-radius: var(--radius-md);
+}
+
+/* Sub-menu buttons (when TreeItem renders inside a sub): same treatment */
+[data-sidebar="menu-sub"] [data-sidebar="menu-button"] {
+  padding-left: calc(var(--depth) * 24px + 8px);
+}
+
+/* Table styles */
+.tiptap .tableWrapper {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 2em 0;
+  margin-right: calc(-1 * var(--editor-right));
+  max-width: calc(100% + var(--editor-right));
+  -webkit-overflow-scrolling: touch;
+}
+
+.tiptap table {
+  border-collapse: collapse;
+  min-width: 100%;
+}
+
+/* The EditorContent wrapper needs relative positioning for table control buttons */
+.tiptap {
+  position: relative;
+}
+
+.tiptap th,
+.tiptap td {
+  border: 1px solid var(--muted-foreground, var(--border));
+  padding: 0.5em 0.75em;
+  min-width: 80px;
+  vertical-align: top;
+}
+
+.tiptap hr {
+  border-color: var(--muted-foreground);
+}
+
+.tiptap th {
+  font-weight: 600;
+  background: var(--muted);
+}
+
+.tiptap .selectedCell {
+  background: var(--accent);
+}
+
+/* ── Table add row/column bars ── */
+/* Rendered as React elements in an overlay div outside contenteditable */
+
+.table-add-row-bar,
+.table-add-col-bar {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 0;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.table-add-row-bar {
+  height: 20px;
+}
+
+.table-add-col-bar {
+  width: 20px;
+}
+
+.table-add-row-bar:hover,
+.table-add-col-bar:hover {
+  opacity: 1;
+  background: var(--accent);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Image styles */
+.tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5em;
+  margin: 0.5em 0;
+}
+
+/* Link styles */
+.tiptap a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * CALLOUT BLOCKS (> [!note], > [!tip], > [!warning], etc.)
+ * ══════════════════════════════════════════════════════
+ */
+
+.callout {
+  border-radius: 0.5em;
+  padding: 0.75em 1em;
+  margin: 0.5em 0;
+  border-left: 4px solid;
+}
+
+.callout p:first-child {
+  font-weight: 600;
+  margin-bottom: 0.25em;
+}
+
+.callout-note {
+  background: oklch(0.95 0.02 250 / 30%);
+  border-left-color: oklch(0.6 0.15 250);
+}
+.dark .callout-note {
+  background: oklch(0.25 0.03 250 / 40%);
+}
+
+.callout-tip {
+  background: oklch(0.95 0.03 145 / 30%);
+  border-left-color: oklch(0.6 0.15 145);
+}
+.dark .callout-tip {
+  background: oklch(0.25 0.03 145 / 40%);
+}
+
+.callout-warning {
+  background: oklch(0.95 0.04 85 / 30%);
+  border-left-color: oklch(0.7 0.15 85);
+}
+.dark .callout-warning {
+  background: oklch(0.25 0.04 85 / 40%);
+}
+
+.callout-danger {
+  background: oklch(0.95 0.04 25 / 30%);
+  border-left-color: oklch(0.65 0.2 25);
+}
+.dark .callout-danger {
+  background: oklch(0.25 0.04 25 / 40%);
+}
+
+.callout-info {
+  background: oklch(0.95 0.02 230 / 30%);
+  border-left-color: oklch(0.6 0.12 230);
+}
+.dark .callout-info {
+  background: oklch(0.25 0.03 230 / 40%);
+}
+
+.callout-success {
+  background: oklch(0.95 0.03 155 / 30%);
+  border-left-color: oklch(0.6 0.15 155);
+}
+.dark .callout-success {
+  background: oklch(0.25 0.03 155 / 40%);
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * TOGGLE / COLLAPSIBLE BLOCKS (details/summary)
+ * ══════════════════════════════════════════════════════
+ */
+
+.tiptap details.toggle-block {
+  border: 1px solid var(--border);
+  border-radius: 0.5em;
+  padding: 0;
+  margin: 0.5em 0;
+}
+
+.tiptap details.toggle-block summary.toggle-summary {
+  cursor: pointer;
+  padding: 0.5em 0.75em;
+  font-weight: 500;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  user-select: none;
+}
+
+.tiptap details.toggle-block summary.toggle-summary::before {
+  content: "▶";
+  font-size: 0.7em;
+  transition: transform 0.15s ease;
+  color: var(--muted-foreground);
+}
+
+.tiptap details.toggle-block[open] summary.toggle-summary::before {
+  transform: rotate(90deg);
+}
+
+.tiptap details.toggle-block[open] summary.toggle-summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.tiptap details.toggle-block [data-toggle-content] {
+  padding: 0.5em 0.75em;
+}
+
+/* Hide content when details is closed — browser native hiding
+   doesn't always work inside contenteditable */
+.tiptap details.toggle-block:not([open]) [data-toggle-content] {
+  display: none;
+}
+
