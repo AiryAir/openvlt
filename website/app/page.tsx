@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ArrowRight } from "lucide-react"
 import Link from "next/link"
 
@@ -150,7 +150,7 @@ function ScrambleText({
 }
 
 // ════════════════════════════════════════════════════════════════════
-export default function LandingSix() {
+export default function LandingPage() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -172,7 +172,7 @@ export default function LandingSix() {
           </span>
           <div className="flex items-center gap-8">
             <Link
-              href="https://github.com/openvlt/openvlt"
+              href="https://github.com/ericvaish/openvlt"
               target="_blank"
               rel="noopener noreferrer"
               className="font-mono text-xs tracking-widest text-stone-600 transition-colors hover:text-stone-300"
@@ -180,10 +180,10 @@ export default function LandingSix() {
               GITHUB
             </Link>
             <Link
-              href="/register"
+              href="/get-started"
               className="font-mono text-xs tracking-widest text-stone-600 transition-colors hover:text-[oklch(0.7_0.15_166)]"
             >
-              SIGN UP
+              DOCS
             </Link>
           </div>
         </nav>
@@ -229,18 +229,20 @@ export default function LandingSix() {
             className={`mt-10 flex items-center gap-5 transition-all delay-[1200ms] duration-1000 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
           >
             <Link
-              href="/register"
+              href="/get-started"
               className="group relative inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 font-mono text-sm font-semibold text-black transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_oklch(0.7_0.15_166/0.3)]"
             >
               Get Started
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
-            <Link
-              href="/4"
+            <a
+              href="https://github.com/ericvaish/openvlt"
+              target="_blank"
+              rel="noopener noreferrer"
               className="font-mono text-sm text-stone-500 underline decoration-stone-800 underline-offset-4 transition-colors hover:text-stone-300 hover:decoration-stone-500"
             >
               Learn more
-            </Link>
+            </a>
           </div>
         </div>
 
@@ -270,9 +272,33 @@ export default function LandingSix() {
         <div
           className={`flex items-center justify-between border-t border-white/5 px-8 py-5 transition-all delay-[1400ms] duration-1000 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
         >
-<span className="font-mono text-xs text-stone-700">
-            &copy; openvlt
+          <span className="font-mono text-xs text-stone-700">
+            &copy; openvlt by{" "}
+            <a
+              href="https://ericvaish.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-stone-400"
+            >
+              Eric Vaish
+            </a>
           </span>
+          <div className="flex items-center gap-5 font-mono text-xs text-stone-700">
+            <a
+              href="mailto:hi@ericvaish.com"
+              className="transition-colors hover:text-stone-400"
+            >
+              hi@ericvaish.com
+            </a>
+            <a
+              href="https://github.com/ericvaish/openvlt"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-stone-400"
+            >
+              GitHub
+            </a>
+          </div>
         </div>
       </div>
     </>
