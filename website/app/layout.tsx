@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "https://openvlt.com/og.webp",
+        url: "https://openvlt.com/og.png",
         width: 1200,
         height: 630,
         alt: "openvlt — open source, self-hosted, encrypted markdown notes",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     title: "openvlt — open source, self-hosted notes",
     description:
       "Your notes as plain markdown files on your server. E2E encrypted. Works offline.",
-    images: ["https://openvlt.com/og.webp"],
+    images: ["https://openvlt.com/og.png"],
   },
 }
 
