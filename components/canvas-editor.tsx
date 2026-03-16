@@ -281,6 +281,12 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
 
       // Track text-note selection for the style bar
       function updateSelectedTextNote() {
+        const tool = editor.getCurrentToolId()
+        // Only show style bar when in select mode with a text-note selected
+        if (tool !== "select") {
+          setSelectedTextNote(null)
+          return
+        }
         const selected = editor.getSelectedShapes()
         if (selected.length === 1 && selected[0].type === "text-note") {
           setSelectedTextNote({ ...selected[0] } as TextNoteShape)
@@ -292,6 +298,8 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
       editor.store.listen(updateSelectedTextNote, { source: "user", scope: "session" })
       // Watch shape prop changes (font/size/color updates)
       editor.store.listen(updateSelectedTextNote, { source: "user", scope: "document" })
+      // Watch tool changes (instance state includes currentToolId)
+      editor.store.listen(updateSelectedTextNote, { source: "user", scope: "all" })
 
       // Double-click/double-tap handled at DOM level (see below in requestAnimationFrame)
 
