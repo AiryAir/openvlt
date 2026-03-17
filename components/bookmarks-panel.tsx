@@ -93,6 +93,21 @@ export function BookmarksPanel() {
             key={bookmark.id}
             role="button"
             tabIndex={0}
+            draggable={
+              bookmark.type === "note" && !!bookmark.targetId
+            }
+            onDragStart={(e) => {
+              if (bookmark.type === "note" && bookmark.targetId) {
+                e.dataTransfer.effectAllowed = "move"
+                e.dataTransfer.setData(
+                  "application/openvlt-note",
+                  JSON.stringify({
+                    noteId: bookmark.targetId,
+                    title: bookmark.label,
+                  })
+                )
+              }
+            }}
             className="group flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             onClick={() => handleClick(bookmark)}
             onKeyDown={(e) => {

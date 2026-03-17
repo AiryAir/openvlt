@@ -133,7 +133,7 @@ export function VaultSelector({ onVaultChange }: VaultSelectorProps) {
               side="bottom"
               align="start"
               sideOffset={4}
-              className="min-w-(--radix-dropdown-menu-trigger-width) bg-[#2f2f2f]! shadow-2xl ring-1 ring-white/[0.08] rounded-xl! p-1.5"
+              className="min-w-(--radix-dropdown-menu-trigger-width) bg-popover! shadow-2xl ring-1 ring-border rounded-xl! p-1.5"
             >
               {vaults.map((vault) => (
                 <DropdownMenuItem

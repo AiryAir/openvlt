@@ -1,9 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { XIcon, PlusIcon } from "lucide-react"
+import { XIcon, PlusIcon, ChevronDownIcon } from "lucide-react"
 import { useTabStore, type Tab } from "@/lib/stores/tab-store"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { TabSearchPanel } from "@/components/tab-search-panel"
 
 // Module-level drag state so tab-container can read it
 let draggedTab: Tab | null = null
@@ -29,6 +35,7 @@ function TabCurve({ side }: { side: "left" | "right" }) {
 export function TabBar() {
   const { tabs, activeTabId, setActiveTab, closeTab, openTab, reorderTab } =
     useTabStore()
+  const [panelOpen, setPanelOpen] = React.useState(false)
   const [dropTargetIndex, setDropTargetIndex] = React.useState<number | null>(
     null
   )
@@ -49,6 +56,10 @@ export function TabBar() {
     dragSourceIndex.current = index
     e.dataTransfer.effectAllowed = "move"
     e.dataTransfer.setData("text/plain", tab.noteId)
+    e.dataTransfer.setData(
+      "application/openvlt-note",
+      JSON.stringify({ noteId: tab.noteId, title: tab.title })
+    )
     if (e.currentTarget instanceof HTMLElement) {
       e.currentTarget.style.opacity = "0.5"
     }
@@ -169,6 +180,23 @@ export function TabBar() {
           <PlusIcon className="size-3.5" />
         </button>
       </div>
+      <Popover open={panelOpen} onOpenChange={setPanelOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className="mb-1.5 mr-3 ml-2 shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            title="Search tabs"
+          >
+            <ChevronDownIcon className="size-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          sideOffset={4}
+          className="w-auto p-0"
+        >
+          <TabSearchPanel onClose={() => setPanelOpen(false)} />
+        </PopoverContent>
+      </Popover>
     </div>
   )
 }

@@ -29,6 +29,7 @@ import { WikiLink } from "@/lib/editor/wiki-link"
 import { TaskListInputRule } from "@/lib/editor/task-list-input-rule"
 import { EmbedBlock } from "@/lib/editor/embed-block"
 import { useTabStore } from "@/lib/stores/tab-store"
+import { useShortcutAction } from "@/lib/stores/shortcuts-store"
 
 const lowlight = createLowlight(common)
 import { uploadAndInsert } from "@/lib/editor/upload"
@@ -158,21 +159,9 @@ export function NoteEditor({
     return () => window.removeEventListener("openvlt:toggle-history", handler)
   }, [noteId])
 
-  // Keyboard shortcut: Cmd+Shift+H
-  React.useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key.toLowerCase() === "h"
-      ) {
-        e.preventDefault()
-        setHistoryOpen((prev) => !prev)
-      }
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [])
+  useShortcutAction("toggleHistory", () => {
+    setHistoryOpen((prev) => !prev)
+  })
 
   // Handle wiki-link clicks: resolve title to note ID and open tab
   React.useEffect(() => {
@@ -379,39 +368,32 @@ export function NoteEditor({
   // Keep ref in sync so editorProps handlers can access the editor
   editorRef.current = editor
 
-  // Handle Cmd+S for explicit save
-  React.useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault()
-        if (!editor) return
-        const content = (editor as any).getMarkdown()
-        if (content === lastSavedContentRef.current) return
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+  // Explicit save
+  useShortcutAction("save", () => {
+    if (!editor) return
+    const content = (editor as any).getMarkdown()
+    if (content === lastSavedContentRef.current) return
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 
-        setSaving(true)
-        fetch(`/api/notes/${noteId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            content,
-            baseVersion: versionRef.current,
-            trigger: "explicit",
-          }),
-        })
-          .then(async (res) => {
-            if (res.ok) {
-              const data = await res.json()
-              versionRef.current = data.version
-              lastSavedContentRef.current = content
-            }
-          })
-          .finally(() => setSaving(false))
-      }
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [editor, noteId])
+    setSaving(true)
+    fetch(`/api/notes/${noteId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content,
+        baseVersion: versionRef.current,
+        trigger: "explicit",
+      }),
+    })
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json()
+          versionRef.current = data.version
+          lastSavedContentRef.current = content
+        }
+      })
+      .finally(() => setSaving(false))
+  })
 
   // Cleanup timeout on unmount + end edit session
   React.useEffect(() => {

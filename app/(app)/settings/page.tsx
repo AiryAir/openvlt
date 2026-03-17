@@ -32,6 +32,8 @@ import type { User, BackupFrequency, BackupRun, SyncPairing } from "@/types"
 export default function SettingsPage() {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => setMounted(true), [])
   const [user, setUser] = React.useState<User | null>(null)
   const [versionRetention, setVersionRetention] = React.useState("365")
   const [customCss, setCustomCssState] = React.useState("")
@@ -210,7 +212,7 @@ export default function SettingsPage() {
                 ).map((opt) => (
                   <Button
                     key={opt.value}
-                    variant={theme === opt.value ? "default" : "outline"}
+                    variant={mounted && theme === opt.value ? "default" : "outline"}
                     size="sm"
                     onClick={() => setTheme(opt.value)}
                   >

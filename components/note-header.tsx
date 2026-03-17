@@ -15,14 +15,29 @@ import {
   MoreHorizontalIcon,
   ImageIcon,
   SmileIcon,
+  FileTextIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useTabStore } from "@/lib/stores/tab-store"
 import { LockDialog } from "@/components/lock-dialog"
 import { addBookmark } from "@/components/bookmarks-panel"
 import { IconPicker } from "@/components/icon-picker"
 import { toast } from "sonner"
 import type { NoteMetadata } from "@/types/note"
+
+function Tip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 interface NoteHeaderProps {
   note: NoteMetadata
@@ -203,7 +218,7 @@ export function NoteHeader({ note, isSplit = false, pane = "main", toolbarSlot }
       {/* Desktop: single-row header.
           min-w-0: prevents header buttons from causing horizontal overflow
           in split view. The title input absorbs the squeeze. Do not remove. */}
-      <header className="hidden h-10 min-w-0 shrink-0 items-center gap-2 border-b px-4 md:flex">
+      <header className="hidden h-10 min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b px-4 scrollbar-none [&::-webkit-scrollbar]:hidden md:flex">
         <IconPicker value={icon} onChange={handleIconChange}>
           <button
             className="flex shrink-0 items-center justify-center rounded-md hover:bg-accent"
@@ -229,105 +244,184 @@ export function NoteHeader({ note, isSplit = false, pane = "main", toolbarSlot }
 
         <span className="shrink-0 text-sm text-muted-foreground">{timeAgo}</span>
 
-        <div ref={moreRef} className="relative">
-          <button
-            onClick={() => setMoreOpen(!moreOpen)}
-            className={`flex size-7 items-center justify-center rounded transition-colors ${
-              moreOpen
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground"
-            }`}
-            title="More actions"
-          >
-            <MoreHorizontalIcon className="size-3.5" />
-          </button>
-          {moreOpen && (
-            <div className="absolute right-0 top-full z-50 mt-1 flex flex-col gap-0.5 rounded-lg border bg-background p-1 shadow-md" style={{ minWidth: 180 }}>
-              {!coverImage && (
+        {/* Markdown & Excalidraw: show individual icon buttons on desktop */}
+        {(note.noteType === "markdown" || note.noteType === "excalidraw") && (
+          <>
+            {note.noteType === "excalidraw" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                onClick={() => window.dispatchEvent(new Event("openvlt:excalidraw-embed"))}
+              >
+                <FileTextIcon className="size-4" />
+                Embed
+              </Button>
+            )}
+            {note.noteType === "markdown" && !coverImage && (
+              <Tip label="Add cover image">
+                <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => coverInputRef.current?.click()}>
+                  <ImageIcon className="size-4" />
+                </Button>
+              </Tip>
+            )}
+            <Tip label={splitNoteId === note.id ? "Close split" : "Split view"}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0"
+                onClick={() => { if (splitNoteId === note.id) { closeSplit() } else { openSplit(note.id, title) } }}
+              >
+                <Columns2Icon className={`size-4 ${splitNoteId === note.id ? "text-primary" : ""}`} />
+              </Button>
+            </Tip>
+            {note.noteType === "markdown" && (
+              <Tip label={outlineOpen ? "Hide outline" : "Show outline"}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="shrink-0"
+                  onClick={() => window.dispatchEvent(new Event("openvlt:toggle-outline"))}
+                >
+                  <PanelRightIcon className={`size-4 ${outlineOpen ? "text-primary" : ""}`} />
+                </Button>
+              </Tip>
+            )}
+            <Tip label={isLocked ? "Unlock note" : "Lock note"}>
+              <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setLockDialogOpen(true)}>
+                {isLocked ? <LockIcon className="size-4 text-yellow-500" /> : <UnlockIcon className="size-4" />}
+              </Button>
+            </Tip>
+            <Tip label="Version history">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0"
+                onClick={() => window.dispatchEvent(new CustomEvent("openvlt:toggle-history", { detail: { noteId: note.id, folderId: note.parentId } }))}
+              >
+                <HistoryIcon className="size-4" />
+              </Button>
+            </Tip>
+            <Tip label={isBookmarked ? "Remove bookmark" : "Add to bookmarks"}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0"
+                onClick={async () => { await addBookmark("note", title, note.id); setIsBookmarked((prev) => !prev) }}
+              >
+                {isBookmarked ? <BookmarkCheckIcon className="size-4 fill-primary text-primary" /> : <BookmarkPlusIcon className="size-4" />}
+              </Button>
+            </Tip>
+            <Tip label={isFavorite ? "Remove from favorites" : "Add to favorites"}>
+              <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={handleToggleFavorite}>
+                <StarIcon className={`size-4 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} />
+              </Button>
+            </Tip>
+            <Tip label="Move to trash">
+              <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={handleDelete}>
+                <TrashIcon className="size-4" />
+              </Button>
+            </Tip>
+          </>
+        )}
+
+        {/* Canvas notes: collapse into three-dot menu to save space for canvas toolbar */}
+        {note.noteType === "canvas" && (
+          <div ref={moreRef} className="relative">
+            <button
+              onClick={() => setMoreOpen(!moreOpen)}
+              className={`flex size-7 items-center justify-center rounded transition-colors ${
+                moreOpen
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              }`}
+              title="More actions"
+            >
+              <MoreHorizontalIcon className="size-3.5" />
+            </button>
+            {moreOpen && (
+              <div className="absolute right-0 top-full z-50 mt-1 flex flex-col gap-0.5 rounded-lg border bg-background p-1 shadow-md" style={{ minWidth: 180 }}>
                 <button
-                  onClick={() => { coverInputRef.current?.click(); setMoreOpen(false) }}
+                  onClick={() => {
+                    if (splitNoteId === note.id) { closeSplit() } else { openSplit(note.id, title) }
+                    setMoreOpen(false)
+                  }}
                   className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
-                  <ImageIcon className="size-3.5" />
-                  Add cover image
+                  <Columns2Icon className={`size-3.5 ${splitNoteId === note.id ? "text-primary" : ""}`} />
+                  {splitNoteId === note.id ? "Close split" : "Split view"}
                 </button>
-              )}
-              <button
-                onClick={() => {
-                  if (splitNoteId === note.id) { closeSplit() } else { openSplit(note.id, title) }
-                  setMoreOpen(false)
-                }}
-                className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <PanelRightIcon className={`size-3.5 ${splitNoteId === note.id ? "text-primary" : ""}`} />
-                {splitNoteId === note.id ? "Close split" : "Split view"}
-              </button>
-              <button
-                onClick={() => { setLockDialogOpen(true); setMoreOpen(false) }}
-                className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                {isLocked ? <LockIcon className="size-3.5 text-yellow-500" /> : <UnlockIcon className="size-3.5" />}
-                {isLocked ? "Unlock note" : "Lock note"}
-              </button>
-              <button
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent("openvlt:toggle-history", { detail: { noteId: note.id, folderId: note.parentId } }))
-                  setMoreOpen(false)
-                }}
-                className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <HistoryIcon className="size-3.5" />
-                Version history
-              </button>
-              <button
-                onClick={async () => {
-                  await addBookmark("note", title, note.id)
-                  setIsBookmarked((prev) => !prev)
-                  setMoreOpen(false)
-                }}
-                className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                {isBookmarked ? <BookmarkCheckIcon className="size-3.5 fill-primary text-primary" /> : <BookmarkPlusIcon className="size-3.5" />}
-                {isBookmarked ? "Remove bookmark" : "Bookmark"}
-              </button>
-              <button
-                onClick={() => { handleToggleFavorite(); setMoreOpen(false) }}
-                className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <StarIcon className={`size-3.5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} />
-                {isFavorite ? "Remove favorite" : "Favorite"}
-              </button>
-              <button
-                onClick={() => { handleDelete(); setMoreOpen(false) }}
-                className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive transition-colors hover:bg-accent"
-              >
-                <TrashIcon className="size-3.5" />
-                Move to trash
-              </button>
-            </div>
-          )}
-        </div>
+                <button
+                  onClick={() => { setLockDialogOpen(true); setMoreOpen(false) }}
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  {isLocked ? <LockIcon className="size-3.5 text-yellow-500" /> : <UnlockIcon className="size-3.5" />}
+                  {isLocked ? "Unlock note" : "Lock note"}
+                </button>
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("openvlt:toggle-history", { detail: { noteId: note.id, folderId: note.parentId } }))
+                    setMoreOpen(false)
+                  }}
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <HistoryIcon className="size-3.5" />
+                  Version history
+                </button>
+                <button
+                  onClick={async () => {
+                    await addBookmark("note", title, note.id)
+                    setIsBookmarked((prev) => !prev)
+                    setMoreOpen(false)
+                  }}
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  {isBookmarked ? <BookmarkCheckIcon className="size-3.5 fill-primary text-primary" /> : <BookmarkPlusIcon className="size-3.5" />}
+                  {isBookmarked ? "Remove bookmark" : "Bookmark"}
+                </button>
+                <button
+                  onClick={() => { handleToggleFavorite(); setMoreOpen(false) }}
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <StarIcon className={`size-3.5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} />
+                  {isFavorite ? "Remove favorite" : "Favorite"}
+                </button>
+                <button
+                  onClick={() => { handleDelete(); setMoreOpen(false) }}
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive transition-colors hover:bg-accent"
+                >
+                  <TrashIcon className="size-3.5" />
+                  Move to trash
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Close button: visible on both panes when split is active */}
         {isSplit && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={closeSplit}
-            title="Close this pane"
-          >
-            <XIcon className="size-4" />
-          </Button>
+          <Tip label="Close this pane">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              onClick={closeSplit}
+            >
+              <XIcon className="size-4" />
+            </Button>
+          </Tip>
         )}
         {!isSplit && splitNoteId && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={closeMainAndPromoteSplit}
-            title="Close this pane"
-          >
-            <XIcon className="size-4" />
-          </Button>
+          <Tip label="Close this pane">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              onClick={closeMainAndPromoteSplit}
+            >
+              <XIcon className="size-4" />
+            </Button>
+          </Tip>
         )}
       </header>
 

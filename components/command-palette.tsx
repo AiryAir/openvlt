@@ -19,6 +19,7 @@ import {
   BookmarkPlusIcon,
   ShuffleIcon,
   SparklesIcon,
+  TextSearchIcon,
 } from "lucide-react"
 import {
   CommandDialog,
@@ -32,9 +33,13 @@ import {
   CommandSeparator,
 } from "@/components/ui/command"
 import { useSidebar } from "@/components/ui/sidebar"
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useNoteCache } from "@/hooks/use-note-cache"
 import { useTabStore } from "@/lib/stores/tab-store"
+import {
+  useShortcuts,
+  useShortcutAction,
+  ShortcutKeys,
+} from "@/lib/stores/shortcuts-store"
 import { addBookmark } from "@/components/bookmarks-panel"
 import { CreateFolderDialog } from "@/components/create-folder-dialog"
 import type { NoteMetadata } from "@/types/note"
@@ -52,9 +57,18 @@ export function CommandPalette() {
   React.useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Allow opening from sidebar search button
+  React.useEffect(() => {
+    const handler = () => setOpen(true)
+    window.addEventListener("openvlt:open-command-palette", handler)
+    return () =>
+      window.removeEventListener("openvlt:open-command-palette", handler)
+  }, [])
+
   const [query, setQuery] = React.useState("")
 
-  // Build fuse index from cached notes
+  // Build fuse index from cached notes (fuzzy title + tag search)
   const fuse = React.useMemo(
     () =>
       new Fuse(notes, {
@@ -68,13 +82,73 @@ export function CommandPalette() {
     [notes]
   )
 
-  const results = React.useMemo(() => {
+  const titleResults = React.useMemo(() => {
     if (!query.trim()) return []
     return fuse
       .search(query)
       .map((r) => r.item)
-      .slice(0, 10)
+      .slice(0, 8)
   }, [query, fuse])
+
+  // Debounced content search via FTS5
+  interface ContentResult {
+    id: string
+    title: string
+    snippet: string
+    matchType: "title" | "content"
+  }
+  const [contentResults, setContentResults] = React.useState<ContentResult[]>(
+    []
+  )
+  const [contentSearching, setContentSearching] = React.useState(false)
+  const contentAbort = React.useRef<AbortController | null>(null)
+
+  React.useEffect(() => {
+    // Clear results when query is empty or dialog closes
+    if (!query.trim() || !open) {
+      setContentResults([])
+      setContentSearching(false)
+      return
+    }
+
+    setContentSearching(true)
+    const timer = setTimeout(async () => {
+      contentAbort.current?.abort()
+      const controller = new AbortController()
+      contentAbort.current = controller
+      try {
+        const res = await fetch(
+          `/api/notes/search-content?q=${encodeURIComponent(query.trim())}`,
+          { signal: controller.signal }
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setContentResults(data)
+        }
+      } catch {
+        // aborted or failed, ignore
+      } finally {
+        if (!controller.signal.aborted) {
+          setContentSearching(false)
+        }
+      }
+    }, 200)
+
+    return () => {
+      clearTimeout(timer)
+      contentAbort.current?.abort()
+    }
+  }, [query, open])
+
+  // Filter content results to only show notes not already in title results
+  const titleResultIds = React.useMemo(
+    () => new Set(titleResults.map((n) => n.id)),
+    [titleResults]
+  )
+  const extraContentResults = React.useMemo(
+    () => contentResults.filter((r) => !titleResultIds.has(r.id)),
+    [contentResults, titleResultIds]
+  )
 
   const recent = React.useMemo(() => notes.slice(0, 5), [notes])
 
@@ -160,62 +234,30 @@ export function CommandPalette() {
     } catch {}
   }
 
-  useKeyboardShortcuts(
-    React.useMemo(
-      () => [
-        {
-          key: "k",
-          modifiers: ["meta"] as const,
-          action: () => setOpen((prev) => !prev),
-          description: "Toggle command palette",
-        },
-        {
-          key: "o",
-          modifiers: ["meta"] as const,
-          action: handleNewNote,
-          description: "New note",
-        },
-        {
-          key: "b",
-          modifiers: ["meta"] as const,
-          action: () => toggleSidebar(),
-          description: "Toggle sidebar",
-        },
-        {
-          key: "o",
-          modifiers: ["meta", "shift"] as const,
-          action: handleNewFolder,
-          description: "New folder",
-        },
-        {
-          key: ",",
-          modifiers: ["meta"] as const,
-          action: () => openTab("__settings__", "Settings"),
-          description: "Open settings",
-        },
-        {
-          key: "f",
-          modifiers: ["meta", "shift"] as const,
-          action: () => router.push("/search"),
-          description: "Advanced search",
-        },
-        {
-          key: "g",
-          modifiers: ["meta", "shift"] as const,
-          action: handleOpenGraph,
-          description: "Graph view",
-        },
-        {
-          key: "d",
-          modifiers: ["meta", "shift"] as const,
-          action: handleDailyNote,
-          description: "Daily note",
-        },
-      ],
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [toggleSidebar, router]
-    )
-  )
+  const { getBinding } = useShortcuts()
+
+  useShortcutAction("toggleCommandPalette", () => setOpen((prev) => !prev))
+  useShortcutAction("newNote", handleNewNote)
+  useShortcutAction("toggleSidebar", () => toggleSidebar())
+  useShortcutAction("newFolder", handleNewFolder)
+  useShortcutAction("openSettings", () => openTab("__settings__", "Settings"))
+  useShortcutAction("advancedSearch", () => {
+    setOpen(false)
+    openTab("__search__", "Search")
+  })
+  useShortcutAction("graphView", handleOpenGraph)
+  useShortcutAction("dailyNote", handleDailyNote)
+  useShortcutAction("allNotes", () => openTab("__all__", "All Notes"))
+  useShortcutAction("favorites", () => {
+    openTab("__all__", "All Notes")
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("openvlt:notes-filter", { detail: { favorites: true } })
+      )
+    }, 0)
+  })
+  useShortcutAction("trash", () => openTab("__trash__", "Trash"))
+  useShortcutAction("bookmarks", () => openTab("__bookmarks__", "Bookmarks"))
 
   if (!mounted) return null
 
@@ -229,13 +271,18 @@ export function CommandPalette() {
           onValueChange={setQuery}
         />
         <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
+          {query.trim() &&
+            titleResults.length === 0 &&
+            extraContentResults.length === 0 &&
+            !contentSearching && (
+              <CommandEmpty>No results found.</CommandEmpty>
+            )}
 
-          {results.length > 0 && (
+          {titleResults.length > 0 && (
             <CommandGroup heading="Notes">
-              {results.map((note) => (
+              {titleResults.map((note) => (
                 <CommandItem key={note.id} onSelect={() => handleSelect(note)}>
-                  <FileTextIcon className="size-4 text-muted-foreground" />
+                  <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
                   <span>{note.title}</span>
                   {note.tags.length > 0 && (
                     <span className="ml-auto text-xs text-muted-foreground">
@@ -247,11 +294,38 @@ export function CommandPalette() {
             </CommandGroup>
           )}
 
+          {extraContentResults.length > 0 && (
+            <CommandGroup heading="Found in content">
+              {extraContentResults.map((result) => (
+                <CommandItem
+                  key={result.id}
+                  onSelect={() => {
+                    setOpen(false)
+                    setQuery("")
+                    openTab(result.id, result.title)
+                  }}
+                >
+                  <TextSearchIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <div className="flex min-w-0 flex-col">
+                    <span>{result.title}</span>
+                    <SnippetPreview snippet={result.snippet} />
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {contentSearching && query.trim() && (
+            <div className="px-4 py-2 text-xs text-muted-foreground">
+              Searching content...
+            </div>
+          )}
+
           {!query && recent.length > 0 && (
             <CommandGroup heading="Recent Notes">
               {recent.map((note) => (
                 <CommandItem key={note.id} onSelect={() => handleSelect(note)}>
-                  <FileTextIcon className="size-4 text-muted-foreground" />
+                  <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
                   <span>{note.title}</span>
                 </CommandItem>
               ))}
@@ -264,32 +338,32 @@ export function CommandPalette() {
             <CommandItem onSelect={handleNewNote}>
               <FilePlusIcon className="size-4 text-muted-foreground" />
               <span>New Note</span>
-              <CommandShortcut>&#8984;O</CommandShortcut>
+              <CommandShortcut><ShortcutKeys binding={getBinding("newNote")} /></CommandShortcut>
             </CommandItem>
             <CommandItem onSelect={handleDailyNote}>
               <CalendarIcon className="size-4 text-muted-foreground" />
               <span>Daily Note</span>
-              <CommandShortcut>&#8984;&#8679;D</CommandShortcut>
+              <CommandShortcut><ShortcutKeys binding={getBinding("dailyNote")} /></CommandShortcut>
             </CommandItem>
             <CommandItem onSelect={handleNewFolder}>
               <FolderPlusIcon className="size-4 text-muted-foreground" />
               <span>New Folder</span>
-              <CommandShortcut>&#8984;&#8679;O</CommandShortcut>
+              <CommandShortcut><ShortcutKeys binding={getBinding("newFolder")} /></CommandShortcut>
             </CommandItem>
             <CommandItem onSelect={handleOpenGraph}>
               <NetworkIcon className="size-4 text-muted-foreground" />
               <span>Graph View</span>
-              <CommandShortcut>&#8984;&#8679;G</CommandShortcut>
+              <CommandShortcut><ShortcutKeys binding={getBinding("graphView")} /></CommandShortcut>
             </CommandItem>
             <CommandItem
               onSelect={() => {
                 setOpen(false)
-                router.push("/search")
+                openTab("__search__", "Search")
               }}
             >
               <SearchIcon className="size-4 text-muted-foreground" />
               <span>Advanced Search</span>
-              <CommandShortcut>&#8984;&#8679;F</CommandShortcut>
+              <CommandShortcut><ShortcutKeys binding={getBinding("advancedSearch")} /></CommandShortcut>
             </CommandItem>
             <CommandItem onSelect={handleRandomNote}>
               <ShuffleIcon className="size-4 text-muted-foreground" />
@@ -316,7 +390,7 @@ export function CommandPalette() {
             >
               <PanelLeftIcon className="size-4 text-muted-foreground" />
               <span>Toggle Sidebar</span>
-              <CommandShortcut>&#8984;B</CommandShortcut>
+              <CommandShortcut><ShortcutKeys binding={getBinding("toggleSidebar")} /></CommandShortcut>
             </CommandItem>
             <CommandItem
               onSelect={() => {
@@ -326,7 +400,7 @@ export function CommandPalette() {
             >
               <SettingsIcon className="size-4 text-muted-foreground" />
               <span>Settings</span>
-              <CommandShortcut>&#8984;,</CommandShortcut>
+              <CommandShortcut><ShortcutKeys binding={getBinding("openSettings")} /></CommandShortcut>
             </CommandItem>
             <CommandItem
               onSelect={() => {
@@ -358,5 +432,25 @@ export function CommandPalette() {
       onCreated={handleFolderCreated}
     />
   </>
+  )
+}
+
+/** Renders an FTS5 snippet with <<matched>> terms highlighted */
+function SnippetPreview({ snippet }: { snippet: string }) {
+  if (!snippet) return null
+  // FTS5 wraps matches in << and >>
+  const parts = snippet.split(/(<<.*?>>)/g)
+  return (
+    <span className="truncate text-xs text-muted-foreground">
+      {parts.map((part, i) =>
+        part.startsWith("<<") && part.endsWith(">>") ? (
+          <span key={i} className="font-medium text-foreground">
+            {part.slice(2, -2)}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
   )
 }

@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { AppSidebar } from "@/components/app-sidebar"
+import { SidebarSwitcher } from "@/components/sidebar-switcher"
 import { CommandPalette } from "@/components/command-palette"
 import { TabProvider } from "@/lib/stores/tab-store"
+import { CardModeProvider } from "@/lib/stores/card-mode-store"
 import { TabContainer } from "@/components/tab-container"
 import { getSession } from "@/lib/auth/middleware"
 import { CustomCssInjector } from "@/components/custom-css-injector"
 import { ConflictResolver } from "@/components/conflict-resolver"
+import { CardModeContainer } from "@/components/card-mode-container"
+import { ShortcutsProvider } from "@/lib/stores/shortcuts-store"
 
 export default async function AppLayout({
   children,
@@ -21,10 +24,13 @@ export default async function AppLayout({
   }
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={500} skipDelayDuration={0}>
       <TabProvider>
+        <ShortcutsProvider>
+        <CardModeProvider>
         <SidebarProvider>
-          <AppSidebar />
+          <SidebarSwitcher />
+          <CardModeContainer />
           {/* min-w-0 + overflow-hidden: prevents horizontal overflow when
               sidebar is open + split view is active. Without this, the two
               split panes size for full viewport width and overflow past the
@@ -38,6 +44,8 @@ export default async function AppLayout({
           <CustomCssInjector />
           <ConflictResolver />
         </SidebarProvider>
+        </CardModeProvider>
+        </ShortcutsProvider>
       </TabProvider>
     </TooltipProvider>
   )

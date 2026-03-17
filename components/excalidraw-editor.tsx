@@ -3,12 +3,58 @@
 import * as React from "react"
 import { useTheme } from "next-themes"
 import dynamic from "next/dynamic"
+import { FileTextIcon } from "lucide-react"
+import { ExcalidrawMdEmbed } from "@/components/excalidraw-md-embed"
+import { ExcalidrawEmbedPicker } from "@/components/excalidraw-embed-picker"
 import "@excalidraw/excalidraw/index.css"
 
 const ExcalidrawComponent = dynamic(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
-  { ssr: false, loading: () => <ExcalidrawSkeleton /> }
+  { ssr: false, loading: () => <ExcalidrawSkeleton /> },
 )
+
+// Lazy module loader — only triggers on first call, avoids SSR issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _excalidrawMod: Promise<any> | null = null
+function getExcalidrawModule() {
+  if (!_excalidrawMod) {
+    _excalidrawMod = import("@excalidraw/excalidraw")
+  }
+  return _excalidrawMod
+}
+
+async function getSyncInvalidIndices() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mod: any = await getExcalidrawModule()
+  return mod.syncInvalidIndices as
+    | ((elements: unknown[]) => unknown[])
+    | undefined
+}
+
+async function getConvertToExcalidrawElements() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mod: any = await getExcalidrawModule()
+  return mod.convertToExcalidrawElements as (elements: unknown[]) => unknown[]
+}
+
+const OPENVLT_EMBED_PREFIX = "openvlt://embed/"
+
+function parseEmbedLink(link: string): {
+  noteId: string
+  anchor: string
+  noteTitle?: string
+} | null {
+  if (!link.startsWith(OPENVLT_EMBED_PREFIX)) return null
+  const rest = link.slice(OPENVLT_EMBED_PREFIX.length)
+  const hashIdx = rest.indexOf("#")
+  if (hashIdx === -1) {
+    return { noteId: rest, anchor: "" }
+  }
+  return {
+    noteId: rest.slice(0, hashIdx),
+    anchor: rest.slice(hashIdx + 1),
+  }
+}
 
 function ExcalidrawSkeleton() {
   return (
@@ -27,6 +73,16 @@ export function ExcalidrawEditor({ noteId, initialData }: ExcalidrawEditorProps)
   const { resolvedTheme } = useTheme()
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [saving, setSaving] = React.useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiRef = React.useRef<any>(null)
+  const [pickerOpen, setPickerOpen] = React.useState(false)
+
+  // Listen for embed trigger from header bar
+  React.useEffect(() => {
+    const handler = () => setPickerOpen(true)
+    window.addEventListener("openvlt:excalidraw-embed", handler)
+    return () => window.removeEventListener("openvlt:excalidraw-embed", handler)
+  }, [])
 
   // Set asset path for fonts
   React.useEffect(() => {
@@ -36,20 +92,38 @@ export function ExcalidrawEditor({ noteId, initialData }: ExcalidrawEditorProps)
     }
   }, [])
 
-  const parsedInitial = React.useMemo(() => {
-    try {
-      const data = JSON.parse(initialData)
-      return {
-        elements: data.elements || [],
-        appState: {
-          ...data.appState,
-          collaborators: undefined,
-        },
-        files: data.files || undefined,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [parsedInitial, setParsedInitial] = React.useState<any>(null)
+
+  React.useEffect(() => {
+    async function parse() {
+      try {
+        const data = JSON.parse(initialData)
+        let elements = data.elements || []
+
+        // Repair corrupted fractional indices to prevent Excalidraw crash
+        try {
+          const syncInvalidIndices = await getSyncInvalidIndices()
+          if (syncInvalidIndices) {
+            elements = syncInvalidIndices(elements)
+          }
+        } catch {
+          // If sync fails, use elements as-is
+        }
+
+        setParsedInitial({
+          elements,
+          appState: {
+            ...data.appState,
+            collaborators: new Map(),
+          },
+          files: data.files || undefined,
+        })
+      } catch {
+        setParsedInitial({ elements: [], appState: {} })
       }
-    } catch {
-      return { elements: [], appState: {} }
     }
+    parse()
   }, [initialData])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,6 +158,83 @@ export function ExcalidrawEditor({ noteId, initialData }: ExcalidrawEditorProps)
     }, 1000)
   }
 
+  async function handleInsertEmbed(
+    embedNoteId: string,
+    embedNoteTitle: string,
+    anchor: string,
+  ) {
+    const api = apiRef.current
+    if (!api) return
+
+    const convertToExcalidrawElements =
+      await getConvertToExcalidrawElements()
+    if (!convertToExcalidrawElements) return
+
+    const link = anchor
+      ? `${OPENVLT_EMBED_PREFIX}${embedNoteId}#${anchor}`
+      : `${OPENVLT_EMBED_PREFIX}${embedNoteId}`
+
+    const { scrollX, scrollY, width, height } = api.getAppState()
+    const centerX = -scrollX + width / 2 - 200
+    const centerY = -scrollY + height / 2 - 150
+
+    const newElements = convertToExcalidrawElements([
+      {
+        type: "embeddable",
+        x: centerX,
+        y: centerY,
+        width: 400,
+        height: 300,
+        link,
+        backgroundColor: "transparent",
+        strokeColor: "transparent",
+        fillStyle: "solid",
+        strokeWidth: 1,
+        roughness: 0,
+        opacity: 100,
+        customData: {
+          openvltEmbed: {
+            noteId: embedNoteId,
+            anchor,
+            noteTitle: embedNoteTitle,
+            anchorType: anchor.startsWith("^") ? "block-id" : "heading",
+          },
+        },
+      },
+    ])
+
+    api.updateScene({
+      elements: [...api.getSceneElements(), ...newElements],
+    })
+
+    // Force Excalidraw to re-validate embeddable elements
+    // Without this, the embed won't render until page refresh
+    setTimeout(() => api.refresh(), 50)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function renderEmbeddable(element: any, _appState: any) {
+    const link = element.link
+    if (!link || !link.startsWith(OPENVLT_EMBED_PREFIX)) return null
+
+    const parsed = parseEmbedLink(link)
+    if (!parsed) return null
+
+    const customTitle = element.customData?.openvltEmbed?.noteTitle
+
+    return (
+      <ExcalidrawMdEmbed
+        noteId={parsed.noteId}
+        anchor={parsed.anchor}
+        noteTitle={customTitle}
+      />
+    )
+  }
+
+  if (!parsedInitial) {
+    return <ExcalidrawSkeleton />
+  }
+
   return (
     <div className="relative flex-1">
       {saving && (
@@ -93,9 +244,17 @@ export function ExcalidrawEditor({ noteId, initialData }: ExcalidrawEditorProps)
       )}
       <div className="h-full w-full">
         <ExcalidrawComponent
+          excalidrawAPI={(api: unknown) => {
+            apiRef.current = api
+          }}
           initialData={parsedInitial}
           onChange={handleChange}
           theme={resolvedTheme === "dark" ? "dark" : "light"}
+          validateEmbeddable={(link: string) => {
+            if (link.startsWith(OPENVLT_EMBED_PREFIX)) return true
+            return undefined
+          }}
+          renderEmbeddable={renderEmbeddable}
           UIOptions={{
             canvasActions: {
               loadScene: false,
@@ -105,6 +264,11 @@ export function ExcalidrawEditor({ noteId, initialData }: ExcalidrawEditorProps)
           }}
         />
       </div>
+      <ExcalidrawEmbedPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleInsertEmbed}
+      />
     </div>
   )
 }

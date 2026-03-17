@@ -825,16 +825,76 @@ export function searchNotes(
   userId: string,
   vaultId: string
 ): NoteMetadata[] {
+  const ftsQuery = buildFtsQuery(query)
+  if (!ftsQuery) return []
   const db = getDb()
   const rows = db
     .prepare(
       `SELECT n.* FROM notes n
        JOIN notes_fts fts ON fts.rowid = n.rowid
        WHERE notes_fts MATCH ? AND n.is_trashed = 0 AND n.user_id = ? AND n.vault_id = ?
-       ORDER BY rank`
+       ORDER BY bm25(notes_fts, 10.0, 1.0)`
     )
-    .all(query, userId, vaultId) as Record<string, unknown>[]
+    .all(ftsQuery, userId, vaultId) as Record<string, unknown>[]
   return rows.map(toMetadata)
+}
+
+export interface SearchResultWithSnippet {
+  id: string
+  title: string
+  snippet: string
+  matchType: "title" | "content"
+}
+
+export function searchNotesWithSnippets(
+  query: string,
+  userId: string,
+  vaultId: string,
+  limit = 10
+): SearchResultWithSnippet[] {
+  const ftsQuery = buildFtsQuery(query)
+  if (!ftsQuery) return []
+  const db = getDb()
+  const rows = db
+    .prepare(
+      `SELECT
+         n.id,
+         n.title,
+         snippet(notes_fts, 1, '<<', '>>', '...', 40) as snippet
+       FROM notes n
+       JOIN notes_fts fts ON fts.rowid = n.rowid
+       WHERE notes_fts MATCH ? AND n.is_trashed = 0 AND n.user_id = ? AND n.vault_id = ?
+       ORDER BY bm25(notes_fts, 10.0, 1.0)
+       LIMIT ?`
+    )
+    .all(ftsQuery, userId, vaultId, limit) as {
+    id: string
+    title: string
+    snippet: string
+  }[]
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    snippet: r.snippet,
+    matchType: "content" as const,
+  }))
+}
+
+/** Build an FTS5 query with prefix matching from a user query string */
+function buildFtsQuery(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return ""
+  // Tokenize, strip FTS5 operators, add prefix * to last token for as-you-type matching
+  const tokens = trimmed
+    .split(/\s+/)
+    .map((t) => t.replace(/[^\w\u00C0-\u024F]/g, ""))
+    .filter((t) => t.length > 0)
+  if (tokens.length === 0) return ""
+  // Quote each token for safety, add prefix to last
+  const parts = tokens.map((t, i) =>
+    i === tokens.length - 1 ? `"${t}"*` : `"${t}"`
+  )
+  return parts.join(" ")
 }
 
 /**

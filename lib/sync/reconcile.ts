@@ -180,7 +180,12 @@ function scanDirectory(
 
       // Recurse into subdirectory
       scanDirectory(vaultRoot, entryRelative, userId, vaultId, knownFolderPaths, knownNotePaths)
-    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+    } else if (
+      entry.isFile() &&
+      (entry.name.endsWith(".md") ||
+        entry.name.endsWith(".openvlt") ||
+        entry.name.endsWith(".excalidraw.json"))
+    ) {
       // Check if note exists in DB
       if (!knownNotePaths.has(entryRelative)) {
         // Find parent folder ID
@@ -196,19 +201,32 @@ function scanDirectory(
         }
 
         const noteId = uuid()
-        const title = entry.name.replace(/\.md$/, "")
+        // Derive title and note_type from filename
+        let title: string
+        let noteType: string = "markdown"
+        if (entry.name.endsWith(".excalidraw.json")) {
+          title = entry.name.replace(/\.excalidraw\.json$/, "")
+          noteType = "excalidraw"
+        } else if (entry.name.endsWith(".openvlt")) {
+          title = entry.name.replace(/\.openvlt$/, "")
+          noteType = "canvas"
+        } else {
+          title = entry.name.replace(/\.md$/, "")
+        }
         const now = new Date().toISOString()
 
-        // Read content for FTS indexing
+        // Read content for FTS indexing (only for markdown)
         let content = ""
-        try {
-          content = fs.readFileSync(path.join(fullPath, entry.name), "utf-8")
-        } catch {}
+        if (noteType === "markdown") {
+          try {
+            content = fs.readFileSync(path.join(fullPath, entry.name), "utf-8")
+          } catch {}
+        }
 
         db.prepare(
-          `INSERT INTO notes (id, title, file_path, parent_id, user_id, vault_id, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(noteId, title, entryRelative, parentId, userId, vaultId, now, now)
+          `INSERT INTO notes (id, title, file_path, parent_id, user_id, vault_id, created_at, updated_at, note_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(noteId, title, entryRelative, parentId, userId, vaultId, now, now, noteType)
 
         // Index for full-text search
         db.prepare(

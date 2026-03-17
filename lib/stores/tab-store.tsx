@@ -3,10 +3,18 @@
 import * as React from "react"
 
 const STORAGE_KEY = "openvlt:open-tabs"
+const RECENTLY_CLOSED_KEY = "openvlt:recently-closed-tabs"
+const MAX_RECENTLY_CLOSED = 20
 
 export interface Tab {
   noteId: string
   title: string
+}
+
+export interface ClosedTab {
+  noteId: string
+  title: string
+  closedAt: number // Date.now()
 }
 
 interface TabState {
@@ -17,8 +25,12 @@ interface TabState {
 }
 
 interface TabStore extends TabState {
+  recentlyClosed: ClosedTab[]
   openTab: (noteId: string, title: string, activate?: boolean) => void
   closeTab: (noteId: string) => void
+  closeAllTabs: () => void
+  closeOtherTabs: (noteId: string) => void
+  reopenClosedTab: (noteId: string) => void
   setActiveTab: (noteId: string) => void
   updateTabTitle: (noteId: string, title: string) => void
   reorderTab: (fromIndex: number, toIndex: number) => void
@@ -46,6 +58,42 @@ function persist(state: TabState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
 
+function loadRecentlyClosed(): ClosedTab[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = localStorage.getItem(RECENTLY_CLOSED_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as ClosedTab[]
+      if (Array.isArray(parsed)) return parsed
+    }
+  } catch {}
+  return []
+}
+
+function persistRecentlyClosed(items: ClosedTab[]) {
+  localStorage.setItem(RECENTLY_CLOSED_KEY, JSON.stringify(items))
+}
+
+function addToRecentlyClosed(
+  current: ClosedTab[],
+  tabs: Tab[]
+): ClosedTab[] {
+  if (tabs.length === 0) return current
+  // Filter out special tabs (settings, trash, etc.)
+  const closable = tabs.filter((t) => !t.noteId.startsWith("__"))
+  if (closable.length === 0) return current
+  const now = Date.now()
+  const newEntries: ClosedTab[] = closable.map((t) => ({
+    noteId: t.noteId,
+    title: t.title,
+    closedAt: now,
+  }))
+  // Remove duplicates (if re-closing a previously closed tab)
+  const ids = new Set(newEntries.map((e) => e.noteId))
+  const filtered = current.filter((c) => !ids.has(c.noteId))
+  return [...newEntries, ...filtered].slice(0, MAX_RECENTLY_CLOSED)
+}
+
 export function TabProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<TabState>({
     tabs: [],
@@ -53,6 +101,7 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
     splitNoteId: null,
     splitTitle: null,
   })
+  const [recentlyClosed, setRecentlyClosed] = React.useState<ClosedTab[]>([])
   const hydratedRef = React.useRef(false)
 
   React.useEffect(() => {
@@ -62,6 +111,7 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
       if (saved.tabs.length > 0) {
         setState(saved)
       }
+      setRecentlyClosed(loadRecentlyClosed())
     }
   }, [])
 
@@ -70,6 +120,12 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
       persist(state)
     }
   }, [state])
+
+  React.useEffect(() => {
+    if (hydratedRef.current) {
+      persistRecentlyClosed(recentlyClosed)
+    }
+  }, [recentlyClosed])
 
   const openTab = React.useCallback(
     (noteId: string, title: string, activate = true) => {
@@ -104,6 +160,8 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => {
       const idx = prev.tabs.findIndex((t) => t.noteId === noteId)
       if (idx === -1) return prev
+      const closedTab = prev.tabs[idx]
+      setRecentlyClosed((rc) => addToRecentlyClosed(rc, [closedTab]))
       const tabs = prev.tabs.filter((t) => t.noteId !== noteId)
       let activeTabId = prev.activeTabId
       if (activeTabId === noteId) {
@@ -115,6 +173,42 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
       return { tabs, activeTabId, splitNoteId, splitTitle }
     })
   }, [])
+
+  const closeAllTabs = React.useCallback(() => {
+    setState((prev) => {
+      setRecentlyClosed((rc) => addToRecentlyClosed(rc, prev.tabs))
+      return {
+        tabs: [],
+        activeTabId: null,
+        splitNoteId: null,
+        splitTitle: null,
+      }
+    })
+  }, [])
+
+  const closeOtherTabs = React.useCallback((noteId: string) => {
+    setState((prev) => {
+      const tab = prev.tabs.find((t) => t.noteId === noteId)
+      if (!tab) return prev
+      const others = prev.tabs.filter((t) => t.noteId !== noteId)
+      setRecentlyClosed((rc) => addToRecentlyClosed(rc, others))
+      return {
+        tabs: [tab],
+        activeTabId: noteId,
+        splitNoteId: prev.splitNoteId === noteId ? prev.splitNoteId : null,
+        splitTitle: prev.splitNoteId === noteId ? prev.splitTitle : null,
+      }
+    })
+  }, [])
+
+  const reopenClosedTab = React.useCallback((noteId: string) => {
+    setRecentlyClosed((prev) => {
+      const entry = prev.find((c) => c.noteId === noteId)
+      if (!entry) return prev
+      openTab(entry.noteId, entry.title)
+      return prev.filter((c) => c.noteId !== noteId)
+    })
+  }, [openTab])
 
   const setActiveTab = React.useCallback((noteId: string) => {
     setState((prev) =>
@@ -185,8 +279,12 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
   const store = React.useMemo<TabStore>(
     () => ({
       ...state,
+      recentlyClosed,
       openTab,
       closeTab,
+      closeAllTabs,
+      closeOtherTabs,
+      reopenClosedTab,
       setActiveTab,
       updateTabTitle,
       reorderTab,
@@ -194,7 +292,7 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
       closeSplit,
       closeMainAndPromoteSplit,
     }),
-    [state, openTab, closeTab, setActiveTab, updateTabTitle, reorderTab, openSplit, closeSplit, closeMainAndPromoteSplit]
+    [state, recentlyClosed, openTab, closeTab, closeAllTabs, closeOtherTabs, reopenClosedTab, setActiveTab, updateTabTitle, reorderTab, openSplit, closeSplit, closeMainAndPromoteSplit]
   )
 
   return <TabContext.Provider value={store}>{children}</TabContext.Provider>

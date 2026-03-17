@@ -443,3 +443,153 @@ export function getFolder(
     createdAt: row.created_at,
   }
 }
+
+// ── All-files tree (disk scan) ─────────────────────────────────────────
+
+const MIME_MAP: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+  ".bmp": "image/bmp",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".avi": "video/x-msvideo",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".flac": "audio/flac",
+  ".pdf": "application/pdf",
+  ".zip": "application/zip",
+  ".gz": "application/gzip",
+  ".tar": "application/x-tar",
+  ".7z": "application/x-7z-compressed",
+  ".rar": "application/vnd.rar",
+  ".json": "application/json",
+  ".csv": "text/csv",
+  ".txt": "text/plain",
+  ".xml": "text/xml",
+  ".html": "text/html",
+  ".css": "text/css",
+  ".js": "text/javascript",
+  ".ts": "text/typescript",
+  ".py": "text/x-python",
+  ".rb": "text/x-ruby",
+  ".go": "text/x-go",
+  ".rs": "text/x-rust",
+  ".java": "text/x-java",
+  ".c": "text/x-c",
+  ".cpp": "text/x-c++",
+  ".h": "text/x-c",
+  ".sh": "text/x-shellscript",
+  ".yaml": "text/yaml",
+  ".yml": "text/yaml",
+  ".toml": "text/x-toml",
+  ".env": "text/plain",
+  ".log": "text/plain",
+  ".sql": "text/x-sql",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}
+
+function getMimeType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase()
+  return MIME_MAP[ext] || "application/octet-stream"
+}
+
+// Hidden files/dirs to always skip
+const HIDDEN_DIRS = new Set([".git", ".DS_Store", "node_modules", ".openvlt"])
+
+/**
+ * Scan the vault directory on disk and return a tree of ALL files and folders,
+ * not just notes tracked in the DB. Note files that exist in the DB get their
+ * note ID so they can be opened in the editor; other files get a path-based ID.
+ */
+export function getAllFilesTree(
+  userId: string,
+  vaultId: string
+): TreeNode[] {
+  const vaultRoot = getVaultPath(vaultId)
+  if (!fs.existsSync(vaultRoot)) return []
+
+  const db = getDb()
+
+  // Build lookups from path to DB ID so expanded state is preserved
+  const noteRows = db
+    .prepare(
+      "SELECT id, file_path FROM notes WHERE is_trashed = 0 AND user_id = ? AND vault_id = ?"
+    )
+    .all(userId, vaultId) as { id: string; file_path: string }[]
+  const noteByPath = new Map<string, string>()
+  for (const row of noteRows) {
+    noteByPath.set(row.file_path, row.id)
+  }
+
+  const folderRows = db
+    .prepare(
+      "SELECT id, path FROM folders WHERE user_id = ? AND vault_id = ?"
+    )
+    .all(userId, vaultId) as { id: string; path: string }[]
+  const folderByPath = new Map<string, string>()
+  for (const row of folderRows) {
+    folderByPath.set(row.path, row.id)
+  }
+
+  function scanDir(dirPath: string, relativePath: string): TreeNode[] {
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(dirPath, { withFileTypes: true })
+    } catch {
+      return []
+    }
+
+    const nodes: TreeNode[] = []
+
+    for (const entry of entries) {
+      if (entry.name.startsWith(".") || HIDDEN_DIRS.has(entry.name)) continue
+
+      const fullPath = path.join(dirPath, entry.name)
+      const relPath = relativePath
+        ? `${relativePath}/${entry.name}`
+        : entry.name
+
+      if (entry.isDirectory()) {
+        const children = scanDir(fullPath, relPath)
+        nodes.push({
+          id: folderByPath.get(relPath) || `dir:${relPath}`,
+          name: entry.name,
+          path: relPath,
+          type: "folder",
+          children,
+        })
+      } else if (entry.isFile()) {
+        const noteId = noteByPath.get(relPath)
+        const mimeType = getMimeType(entry.name)
+        nodes.push({
+          id: noteId || `file:${relPath}`,
+          name: entry.name,
+          path: relPath,
+          type: noteId ? "file" : "attachment",
+          mimeType: noteId ? undefined : mimeType,
+        })
+      }
+    }
+
+    // Sort: folders first, then files, alphabetical within each
+    return nodes.sort((a, b) => {
+      if (a.type === "folder" && b.type !== "folder") return -1
+      if (a.type !== "folder" && b.type === "folder") return 1
+      return a.name.localeCompare(b.name)
+    })
+  }
+
+  return scanDir(vaultRoot, "")
+}

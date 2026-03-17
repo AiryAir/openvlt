@@ -23,16 +23,119 @@ import {
   ServerIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  LayoutPanelLeftIcon,
+  PanelTopIcon,
+} from "lucide-react"
+import { useSidebarLayout } from "@/hooks/use-sidebar-layout"
 import { toast } from "sonner"
+import {
+  useShortcuts,
+  ShortcutKeys,
+  eventToBinding,
+  bindingToString,
+  getConflicts,
+  formatShortcut,
+  type ShortcutBinding,
+} from "@/lib/stores/shortcuts-store"
 import { confirmDialog, promptDialog } from "@/lib/dialogs"
 import type { User, BackupFrequency, BackupRun, SyncPairing } from "@/types"
 
 export function SettingsPanel() {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
+  const { layout: sidebarLayout, setLayout: setSidebarLayout } =
+    useSidebarLayout()
   const [user, setUser] = React.useState<User | null>(null)
   const [versionRetention, setVersionRetention] = React.useState("365")
   const [attachmentRetention, setAttachmentRetention] = React.useState("7")
+  const shortcuts = useShortcuts()
+  const [recordingId, setRecordingId] = React.useState<string | null>(null)
+
+  // Listen for key presses while recording a new shortcut
+  const [pendingBinding, setPendingBinding] =
+    React.useState<ShortcutBinding | null>(null)
+  const [pendingConflictMsg, setPendingConflictMsg] = React.useState<
+    string | null
+  >(null)
+
+  React.useEffect(() => {
+    if (!recordingId) return
+
+    function onKeyDown(e: KeyboardEvent) {
+      e.preventDefault()
+      e.stopPropagation()
+
+      // Escape cancels recording
+      if (e.key === "Escape") {
+        setRecordingId(null)
+        setPendingBinding(null)
+        setPendingConflictMsg(null)
+        return
+      }
+
+      const binding = eventToBinding(e)
+      if (!binding) return
+
+      // Check for internal conflicts (already used by another openvlt action)
+      for (const def of shortcuts.definitions) {
+        if (def.id === recordingId) continue
+        const existing = shortcuts.getBinding(def.id)
+        if (
+          existing &&
+          bindingToString(existing) === bindingToString(binding)
+        ) {
+          toast.error(
+            `Already used by "${def.label}". Choose a different shortcut.`
+          )
+          return
+        }
+      }
+
+      // Check for external conflicts (browser, Excalidraw, tldraw)
+      const conflicts = getConflicts(binding)
+      if (conflicts.length > 0) {
+        const unoverridable = conflicts.find((c) => c.unoverridable)
+        if (unoverridable) {
+          toast.error(
+            `${formatShortcut(binding)} is reserved by your browser (${unoverridable.action}) and cannot be intercepted.`
+          )
+          return
+        }
+        // Show warning but let user confirm
+        const lines = conflicts.map(
+          (c) =>
+            `${c.app === "browser" ? "Browser" : c.app === "excalidraw" ? "Excalidraw" : "tldraw"}: ${c.action}`
+        )
+        setPendingBinding(binding)
+        setPendingConflictMsg(lines.join(", "))
+        return
+      }
+
+      // No conflicts, save directly
+      shortcuts.setOverride(recordingId!, binding)
+      setRecordingId(null)
+      setPendingBinding(null)
+      setPendingConflictMsg(null)
+    }
+
+    window.addEventListener("keydown", onKeyDown, true)
+    return () => window.removeEventListener("keydown", onKeyDown, true)
+  }, [recordingId, shortcuts])
+
+  function confirmPendingShortcut() {
+    if (pendingBinding && recordingId) {
+      shortcuts.setOverride(recordingId, pendingBinding)
+    }
+    setRecordingId(null)
+    setPendingBinding(null)
+    setPendingConflictMsg(null)
+  }
+
+  function cancelPendingShortcut() {
+    setPendingBinding(null)
+    setPendingConflictMsg(null)
+  }
 
   // Cloud Backup state
   const [backupProvider, setBackupProvider] = React.useState<{
@@ -208,6 +311,27 @@ export function SettingsPanel() {
                   </Button>
                 ))}
               </div>
+              <label className="text-sm text-muted-foreground">
+                Sidebar Layout
+              </label>
+              <div className="flex gap-2">
+                <Button
+                  variant={sidebarLayout === "rail" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSidebarLayout("rail")}
+                >
+                  <LayoutPanelLeftIcon className="mr-2 size-3.5" />
+                  Rail
+                </Button>
+                <Button
+                  variant={sidebarLayout === "horizontal" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSidebarLayout("horizontal")}
+                >
+                  <PanelTopIcon className="mr-2 size-3.5" />
+                  Horizontal
+                </Button>
+              </div>
             </div>
           </section>
 
@@ -258,6 +382,143 @@ export function SettingsPanel() {
                   <option value="0">Forever</option>
                 </select>
               </div>
+            </div>
+          </section>
+
+          {/* Keyboard Shortcuts */}
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Keyboard Shortcuts</h2>
+            <div className="space-y-1 rounded-lg border p-4">
+              {(["general", "navigation", "editor"] as const).map((category) => {
+                const defs = shortcuts.definitions.filter(
+                  (d) => d.category === category
+                )
+                if (defs.length === 0) return null
+                return (
+                  <div key={category} className="space-y-0.5 first:pt-0 [&:not(:first-child)]:pt-1">
+                    <h3 className="flex items-center gap-2 pb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                      {category}
+                      <span className="h-px flex-1 bg-border" />
+                    </h3>
+                    {defs.map((def) => {
+                      const binding = shortcuts.getBinding(def.id)
+                      const isOverridden = def.id in shortcuts.overrides
+                      const isRecording = recordingId === def.id
+                      const showConflictWarning =
+                        isRecording && pendingBinding && pendingConflictMsg
+                      // Show existing conflict indicator for current binding
+                      const existingConflicts = binding
+                        ? getConflicts(binding)
+                        : []
+
+                      return (
+                        <div key={def.id} className="space-y-1">
+                          <div className="flex items-center justify-between rounded-md px-2 py-1.5">
+                            <span className="text-sm">{def.label}</span>
+                            <div className="flex items-center gap-2">
+                              {isRecording ? (
+                                showConflictWarning ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="rounded border border-yellow-500/50 bg-yellow-500/10 px-2.5 py-1 font-mono text-xs text-yellow-500">
+                                      <ShortcutKeys
+                                        binding={pendingBinding}
+                                      />
+                                    </span>
+                                    <button
+                                      onClick={confirmPendingShortcut}
+                                      className="rounded bg-yellow-600 px-2 py-1 text-xs font-medium text-white hover:bg-yellow-500"
+                                    >
+                                      Use anyway
+                                    </button>
+                                    <button
+                                      onClick={cancelPendingShortcut}
+                                      className="text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="animate-pulse rounded border border-primary bg-primary/5 px-2.5 py-1 font-mono text-xs text-primary">
+                                    Press shortcut...
+                                  </span>
+                                )
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setRecordingId(def.id)
+                                    setPendingBinding(null)
+                                    setPendingConflictMsg(null)
+                                  }}
+                                  className={`rounded border px-2.5 py-1 font-mono text-xs transition-colors hover:bg-accent ${
+                                    existingConflicts.length > 0
+                                      ? "border-yellow-500/30 bg-yellow-500/5"
+                                      : "bg-muted"
+                                  }`}
+                                  title={
+                                    existingConflicts.length > 0
+                                      ? `Conflicts with: ${existingConflicts.map((c) => `${c.app} (${c.action})`).join(", ")}`
+                                      : "Click to change shortcut"
+                                  }
+                                >
+                                  {binding ? (
+                                    <ShortcutKeys binding={binding} />
+                                  ) : (
+                                    "Not set"
+                                  )}
+                                </button>
+                              )}
+                              {isOverridden && !isRecording && (
+                                <button
+                                  onClick={() =>
+                                    shortcuts.resetOverride(def.id)
+                                  }
+                                  className="text-xs text-muted-foreground hover:text-foreground"
+                                  title="Reset to default"
+                                >
+                                  Reset
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {/* Conflict warning banner */}
+                          {isRecording &&
+                            showConflictWarning &&
+                            pendingConflictMsg && (
+                              <div className="mx-2 rounded border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-600 dark:text-yellow-400">
+                                This shortcut conflicts with:{" "}
+                                {pendingConflictMsg}. It will be overridden when
+                                those editors are open.
+                              </div>
+                            )}
+                          {/* Existing conflict indicator */}
+                          {!isRecording && existingConflicts.length > 0 && (
+                            <div className="mx-2 rounded border border-yellow-500/20 bg-yellow-500/5 px-3 py-1.5 text-xs text-yellow-600 dark:text-yellow-400">
+                              Also used by{" "}
+                              {existingConflicts
+                                .map(
+                                  (c) =>
+                                    `${c.app === "browser" ? "Browser" : c.app === "excalidraw" ? "Excalidraw" : "tldraw"} (${c.action})`
+                                )
+                                .join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+              {Object.keys(shortcuts.overrides).length > 0 && (
+                <div className="border-t pt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={shortcuts.resetAll}
+                  >
+                    Reset All to Defaults
+                  </Button>
+                </div>
+              )}
             </div>
           </section>
 

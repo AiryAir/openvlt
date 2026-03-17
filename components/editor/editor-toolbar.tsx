@@ -30,12 +30,32 @@ import {
   PaperclipIcon,
   ClipboardCopyIcon,
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import { promptDialog } from "@/lib/dialogs"
 import { pickAndUpload } from "@/lib/editor/upload"
 
 function ToolbarSeparator() {
   return <div className="mx-1 h-6 w-px bg-border" />
+}
+
+function Tip({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  )
 }
 
 interface EditorToolbarProps {
@@ -73,26 +93,16 @@ export function EditorToolbar({ editor, noteId }: EditorToolbarProps) {
   return (
     <div className="sticky top-0 z-[5] flex items-center gap-0.5 overflow-x-auto border-b bg-background/95 px-2 py-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {/* Undo / Redo */}
-      <Toggle
-        size="sm"
-        variant="outline"
-        pressed={false}
-        onPressedChange={() => editor.chain().focus().undo().run()}
-        onMouseDown={(e) => e.preventDefault()}
-        title="Undo (Ctrl+Z)"
-      >
-        <Undo2Icon className="size-4" />
-      </Toggle>
-      <Toggle
-        size="sm"
-        variant="outline"
-        pressed={false}
-        onPressedChange={() => editor.chain().focus().redo().run()}
-        onMouseDown={(e) => e.preventDefault()}
-        title="Redo (Ctrl+Y)"
-      >
-        <Redo2Icon className="size-4" />
-      </Toggle>
+      <Tip label="Undo (⌘Z)">
+        <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => editor.chain().focus().undo().run()} onMouseDown={(e) => e.preventDefault()}>
+          <Undo2Icon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Redo (⌘Y)">
+        <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => editor.chain().focus().redo().run()} onMouseDown={(e) => e.preventDefault()}>
+          <Redo2Icon className="size-4" />
+        </Toggle>
+      </Tip>
 
       <ToolbarSeparator />
 
@@ -123,69 +133,101 @@ export function EditorToolbar({ editor, noteId }: EditorToolbarProps) {
       <ToolbarSeparator />
 
       {/* Text formatting */}
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("bold")} onPressedChange={() => editor.chain().focus().toggleBold().run()} onMouseDown={(e) => e.preventDefault()} title="Bold (Ctrl+B)">
-        <BoldIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("italic")} onPressedChange={() => editor.chain().focus().toggleItalic().run()} onMouseDown={(e) => e.preventDefault()} title="Italic (Ctrl+I)">
-        <ItalicIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("underline")} onPressedChange={() => editor.chain().focus().toggleUnderline().run()} onMouseDown={(e) => e.preventDefault()} title="Underline (Ctrl+U)">
-        <UnderlineIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("strike")} onPressedChange={() => editor.chain().focus().toggleStrike().run()} onMouseDown={(e) => e.preventDefault()} title="Strikethrough">
-        <StrikethroughIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("code")} onPressedChange={() => editor.chain().focus().toggleCode().run()} onMouseDown={(e) => e.preventDefault()} title="Inline Code">
-        <CodeIcon className="size-4" />
-      </Toggle>
+      <Tip label="Bold (⌘B)">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("bold")} onPressedChange={() => editor.chain().focus().toggleBold().run()} onMouseDown={(e) => e.preventDefault()}>
+          <BoldIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Italic (⌘I)">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("italic")} onPressedChange={() => editor.chain().focus().toggleItalic().run()} onMouseDown={(e) => e.preventDefault()}>
+          <ItalicIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Underline (⌘U)">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("underline")} onPressedChange={() => editor.chain().focus().toggleUnderline().run()} onMouseDown={(e) => e.preventDefault()}>
+          <UnderlineIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Strikethrough">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("strike")} onPressedChange={() => editor.chain().focus().toggleStrike().run()} onMouseDown={(e) => e.preventDefault()}>
+          <StrikethroughIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Inline Code">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("code")} onPressedChange={() => editor.chain().focus().toggleCode().run()} onMouseDown={(e) => e.preventDefault()}>
+          <CodeIcon className="size-4" />
+        </Toggle>
+      </Tip>
 
       <ToolbarSeparator />
 
       {/* Lists */}
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("bulletList")} onPressedChange={() => editor.chain().focus().toggleBulletList().run()} onMouseDown={(e) => e.preventDefault()} title="Bullet List">
-        <ListIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("orderedList")} onPressedChange={() => editor.chain().focus().toggleOrderedList().run()} onMouseDown={(e) => e.preventDefault()} title="Ordered List">
-        <ListOrderedIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("taskList")} onPressedChange={() => editor.chain().focus().toggleTaskList().run()} onMouseDown={(e) => e.preventDefault()} title="Task List">
-        <ListChecksIcon className="size-4" />
-      </Toggle>
+      <Tip label="Bullet List">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("bulletList")} onPressedChange={() => editor.chain().focus().toggleBulletList().run()} onMouseDown={(e) => e.preventDefault()}>
+          <ListIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Ordered List">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("orderedList")} onPressedChange={() => editor.chain().focus().toggleOrderedList().run()} onMouseDown={(e) => e.preventDefault()}>
+          <ListOrderedIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Task List">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("taskList")} onPressedChange={() => editor.chain().focus().toggleTaskList().run()} onMouseDown={(e) => e.preventDefault()}>
+          <ListChecksIcon className="size-4" />
+        </Toggle>
+      </Tip>
 
       <ToolbarSeparator />
 
       {/* Block elements */}
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("blockquote")} onPressedChange={() => editor.chain().focus().toggleBlockquote().run()} onMouseDown={(e) => e.preventDefault()} title="Blockquote">
-        <QuoteIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("codeBlock")} onPressedChange={() => editor.chain().focus().toggleCodeBlock().run()} onMouseDown={(e) => e.preventDefault()} title="Code Block">
-        <FileCodeIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => editor.chain().focus().setHorizontalRule().run()} onMouseDown={(e) => e.preventDefault()} title="Horizontal Rule">
-        <MinusIcon className="size-4" />
-      </Toggle>
+      <Tip label="Blockquote">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("blockquote")} onPressedChange={() => editor.chain().focus().toggleBlockquote().run()} onMouseDown={(e) => e.preventDefault()}>
+          <QuoteIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Code Block">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("codeBlock")} onPressedChange={() => editor.chain().focus().toggleCodeBlock().run()} onMouseDown={(e) => e.preventDefault()}>
+          <FileCodeIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Horizontal Rule">
+        <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => editor.chain().focus().setHorizontalRule().run()} onMouseDown={(e) => e.preventDefault()}>
+          <MinusIcon className="size-4" />
+        </Toggle>
+      </Tip>
 
       <ToolbarSeparator />
 
       {/* Table, Link, Image, Attach */}
-      <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} onMouseDown={(e) => e.preventDefault()} title="Insert Table">
-        <TableIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={editor.isActive("link")} onPressedChange={handleInsertLink} onMouseDown={(e) => e.preventDefault()} title="Insert Link">
-        <LinkIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => pickAndUpload(editor, noteId, "image/*")} onMouseDown={(e) => e.preventDefault()} title="Insert Image">
-        <ImageIcon className="size-4" />
-      </Toggle>
-      <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => pickAndUpload(editor, noteId)} onMouseDown={(e) => e.preventDefault()} title="Attach File">
-        <PaperclipIcon className="size-4" />
-      </Toggle>
+      <Tip label="Insert Table">
+        <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} onMouseDown={(e) => e.preventDefault()}>
+          <TableIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Insert Link">
+        <Toggle size="sm" variant="outline" pressed={editor.isActive("link")} onPressedChange={handleInsertLink} onMouseDown={(e) => e.preventDefault()}>
+          <LinkIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Insert Image">
+        <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => pickAndUpload(editor, noteId, "image/*")} onMouseDown={(e) => e.preventDefault()}>
+          <ImageIcon className="size-4" />
+        </Toggle>
+      </Tip>
+      <Tip label="Attach File">
+        <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => pickAndUpload(editor, noteId)} onMouseDown={(e) => e.preventDefault()}>
+          <PaperclipIcon className="size-4" />
+        </Toggle>
+      </Tip>
 
       <ToolbarSeparator />
 
-      <Toggle size="sm" variant="outline" pressed={false} onPressedChange={handleCopyMarkdown} onMouseDown={(e) => e.preventDefault()} title="Copy as Markdown">
-        <ClipboardCopyIcon className="size-4" />
-      </Toggle>
+      <Tip label="Copy as Markdown">
+        <Toggle size="sm" variant="outline" pressed={false} onPressedChange={handleCopyMarkdown} onMouseDown={(e) => e.preventDefault()}>
+          <ClipboardCopyIcon className="size-4" />
+        </Toggle>
+      </Tip>
     </div>
   )
 }

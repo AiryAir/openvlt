@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createFolder, getFolderTree } from "@/lib/folders"
+import { createFolder, getFolderTree, getAllFilesTree } from "@/lib/folders"
 import { AuthError, requireAuthWithVault } from "@/lib/auth/middleware"
 import { reconcileVault } from "@/lib/sync/reconcile"
 
@@ -8,6 +8,11 @@ export async function GET(request: NextRequest) {
     const { user, vaultId } = await requireAuthWithVault()
     // Reconcile DB with disk before returning tree (catches external changes)
     reconcileVault(vaultId)
+    const showAll = request.nextUrl.searchParams.get("showAll") === "true"
+    if (showAll) {
+      const tree = getAllFilesTree(user.id, vaultId)
+      return NextResponse.json(tree)
+    }
     const advanced = request.nextUrl.searchParams.get("mode") === "advanced"
     const tree = getFolderTree(user.id, vaultId, advanced)
     return NextResponse.json(tree)

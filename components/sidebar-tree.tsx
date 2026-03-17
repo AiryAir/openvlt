@@ -101,7 +101,19 @@ const ExpandedContext = React.createContext<{
   expandedIds: Set<string>
   toggle: (id: string) => void
   expand: (id: string) => void
-}>({ expandedIds: new Set(), toggle: () => {}, expand: () => {} })
+  activeFolderId: string | null
+  setActiveFolderId: (id: string | null) => void
+  activeItemId: string | null
+  setActiveItemId: (id: string | null) => void
+}>({
+  expandedIds: new Set(),
+  toggle: () => {},
+  expand: () => {},
+  activeFolderId: null,
+  setActiveFolderId: () => {},
+  activeItemId: null,
+  setActiveItemId: () => {},
+})
 
 // ── Drag-and-drop context ──
 
@@ -115,9 +127,20 @@ const DragContext = React.createContext<{
 interface SidebarTreeProps {
   nodes: TreeNode[]
   onRefresh: () => void
+  activeFolderId?: string | null
+  onFolderActivate?: (id: string | null) => void
+  activeItemId?: string | null
+  onItemActivate?: (id: string | null) => void
 }
 
-export function SidebarTree({ nodes, onRefresh }: SidebarTreeProps) {
+export function SidebarTree({
+  nodes,
+  onRefresh,
+  activeFolderId = null,
+  onFolderActivate,
+  activeItemId = null,
+  onItemActivate,
+}: SidebarTreeProps) {
   const [draggedNode, setDraggedNode] = React.useState<TreeNode | null>(null)
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(loadExpanded)
 
@@ -142,8 +165,12 @@ export function SidebarTree({ nodes, onRefresh }: SidebarTreeProps) {
           return next
         })
       },
+      activeFolderId,
+      setActiveFolderId: onFolderActivate ?? (() => {}),
+      activeItemId,
+      setActiveItemId: onItemActivate ?? (() => {}),
     }),
-    [expandedIds]
+    [expandedIds, activeFolderId, onFolderActivate, activeItemId, onItemActivate]
   )
 
   if (nodes.length === 0) {
@@ -217,13 +244,30 @@ function TreeItem({
     string | null
   >(null)
   const { draggedNode, setDraggedNode } = React.useContext(DragContext)
-  const { expandedIds, toggle, expand } = React.useContext(ExpandedContext)
+  const {
+    expandedIds,
+    toggle,
+    expand,
+    activeFolderId,
+    setActiveFolderId,
+    activeItemId,
+    setActiveItemId,
+  } = React.useContext(ExpandedContext)
 
   const expanded = expandedIds.has(node.id)
   const isActive = activeTabId === node.id
+  const isItemActive = activeItemId === node.id
 
   function openNote() {
+    // Non-note files (from "show all files" mode) - download them
+    if (node.id.startsWith("file:")) {
+      const filePath = node.id.slice(5)
+      window.open(`/api/attachments/vault-file?path=${encodeURIComponent(filePath)}`, "_blank")
+      return
+    }
     openTab(node.id, node.name)
+    setActiveItemId(node.id)
+    if (parentId) setActiveFolderId(parentId)
   }
 
   // ── Actions ──
@@ -458,6 +502,13 @@ function TreeItem({
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.effectAllowed = "move"
     setDraggedNode(node)
+    // Set custom type so notes can be dropped into split panes
+    if (node.type === "file") {
+      e.dataTransfer.setData(
+        "application/openvlt-note",
+        JSON.stringify({ noteId: node.id, title: node.name })
+      )
+    }
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -634,8 +685,12 @@ function TreeItem({
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <Btn
-              onClick={() => toggle(node.id)}
-              className={dropClass}
+              onClick={() => {
+                toggle(node.id)
+                setActiveFolderId(node.id)
+                setActiveItemId(node.id)
+              }}
+              className={`${dropClass} ${isItemActive ? "ring-2 ring-inset ring-primary! rounded-md font-medium" : ""}`}
               {...dragProps}
               {...dropProps}
             >
@@ -643,9 +698,13 @@ function TreeItem({
                 className={`size-4 shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`}
               />
               {expanded ? (
-                <FolderOpenIcon className="size-4 shrink-0" />
+                <FolderOpenIcon
+                  className={`size-4 shrink-0 ${isItemActive ? "text-primary" : ""}`}
+                />
               ) : (
-                <FolderIcon className="size-4 shrink-0" />
+                <FolderIcon
+                  className={`size-4 shrink-0 ${isItemActive ? "text-primary" : ""}`}
+                />
               )}
               <span>{node.name}</span>
             </Btn>
@@ -698,6 +757,7 @@ function TreeItem({
                 openNote()
                 toggle(node.id)
               }}
+              className={isItemActive ? "ring-2 ring-inset ring-primary! rounded-md" : ""}
               {...dragProps}
             >
               <ChevronRightIcon
@@ -751,6 +811,7 @@ function TreeItem({
         <Btn
           isActive={isActive}
           onClick={() => openNote()}
+          className={isItemActive ? "ring-2 ring-inset ring-primary! rounded-md" : ""}
           {...dragProps}
         >
           <NoteIcon className="size-4 shrink-0" />

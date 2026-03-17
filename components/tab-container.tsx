@@ -9,10 +9,77 @@ import { SettingsPanel } from "@/components/settings-panel"
 import { TrashPanel } from "@/components/trash-panel"
 import { NotesListPanel } from "@/components/notes-list-panel"
 import { DatabaseViewPanel } from "@/components/database/database-view-panel"
+import { BookmarksListPanel } from "@/components/bookmarks-list-panel"
+import { SearchPanel } from "@/components/search-panel"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { FileTextIcon, XIcon } from "lucide-react"
+import { FileTextIcon, XIcon, RotateCcwIcon } from "lucide-react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { useModifierKey } from "@/hooks/use-platform"
+import {
+  useShortcutAction,
+  useShortcuts,
+  ShortcutKeys,
+} from "@/lib/stores/shortcuts-store"
+
+const mascotQuotes = {
+  morning: [
+    "Fresh page, fresh thoughts. Let's go!",
+    "Your ideas had all night to marinate.",
+    "Coffee and creativity, name a better duo.",
+    "The best notes are written before noon.",
+    "What's on your mind this morning?",
+    "A blank page is just a thought waiting to happen.",
+    "Early words stick the longest.",
+  ],
+  afternoon: [
+    "Midday momentum, keep it rolling!",
+    "Your vault missed you.",
+    "Quick thought? Jot it down before it vanishes.",
+    "Afternoon brain dump in 3... 2... 1...",
+    "The best ideas hide in the middle of the day.",
+    "Still time to write something you'll thank yourself for.",
+    "Your future self will appreciate these notes.",
+  ],
+  evening: [
+    "Winding down? Your notes aren't going anywhere.",
+    "Evening reflection time.",
+    "Capture today before it fades.",
+    "The quiet hours are the best for writing.",
+    "One last thought before the day ends?",
+    "Night owl notes hit different.",
+    "Tomorrow you will be glad you wrote this down.",
+  ],
+  lateNight: [
+    "The vault never sleeps. Neither do you, apparently.",
+    "Late night inspiration is the best kind.",
+    "Shhh... just you and your thoughts now.",
+    "Midnight thoughts deserve to be written down.",
+    "The best secrets are written after midnight.",
+    "Can't sleep? Might as well be productive.",
+    "Your 3am ideas might actually be genius.",
+  ],
+}
+
+function getMascotQuote(hour: number): string {
+  const period =
+    hour < 5 ? "lateNight" : hour < 12 ? "morning" : hour < 17 ? "afternoon" : hour < 21 ? "evening" : "lateNight"
+  const quotes = mascotQuotes[period]
+  // Use date as seed so the quote stays consistent within a session
+  // but changes each day
+  const dayIndex = Math.floor(Date.now() / (1000 * 60 * 60)) % quotes.length
+  return quotes[dayIndex]
+}
+
+function formatClosedTime(timestamp: number): string {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000)
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
 
 export function TabContainer() {
   const store = useTabStore()
@@ -25,19 +92,35 @@ export function TabContainer() {
     closeSplit,
     openSplit,
     openTab,
+    recentlyClosed,
+    reopenClosedTab,
   } = store
-  const mod = useModifierKey()
+  const { getBinding } = useShortcuts()
   const storeRef = React.useRef(store)
   storeRef.current = store
 
   const [dropSide, setDropSide] = React.useState<"left" | "right" | null>(null)
   const [isDraggingTab, setIsDraggingTab] = React.useState(false)
+  const [userName, setUserName] = React.useState<string | null>(null)
 
-  // Listen for drag events from tab bar only
   React.useEffect(() => {
-    function onDragStart() {
-      // Only activate split drop zones when an actual tab is being dragged
-      if (getDraggedTab()) {
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const name = data?.user?.displayName || data?.user?.username || null
+        setUserName(name ? name.split(" ")[0] : null)
+      })
+      .catch(() => {})
+  }, [])
+
+  // Listen for drag events — activate drop zones when a note is being dragged
+  // from the tab bar, sidebar, or card mode panels
+  React.useEffect(() => {
+    function onDragStart(e: DragEvent) {
+      if (
+        getDraggedTab() ||
+        e.dataTransfer?.types.includes("application/openvlt-note")
+      ) {
         setIsDraggingTab(true)
       }
     }
@@ -57,12 +140,21 @@ export function TabContainer() {
   const specialTabRoutes: Record<string, string> = {
     __all__: "/notes",
     __trash__: "/notes?view=trash",
+    __bookmarks__: "/notes?view=bookmarks",
     __settings__: "/settings",
     __graph__: "/notes?view=graph",
+    __search__: "/search",
   }
 
   React.useEffect(() => {
-    if (!activeTabId) return
+    if (!activeTabId) {
+      // No tabs open — go to /notes (empty state)
+      const current = window.location.pathname + window.location.search
+      if (current !== "/notes") {
+        window.history.replaceState(null, "", "/notes")
+      }
+      return
+    }
     const current = window.location.pathname + window.location.search
     const target = activeTabId.startsWith("__dbview_")
       ? `/notes?view=database&id=${activeTabId.slice(9, -2)}`
@@ -88,82 +180,203 @@ export function TabContainer() {
     return () => window.removeEventListener("popstate", handlePopState)
   }, [tabs, setActiveTab])
 
-  // Cmd+W to close active tab, Cmd+\ to close split
-  React.useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "w") {
-        e.preventDefault()
-        if (storeRef.current.activeTabId) {
-          storeRef.current.closeTab(storeRef.current.activeTabId)
-        }
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
-        e.preventDefault()
-        if (storeRef.current.splitNoteId) {
-          storeRef.current.closeSplit()
-        }
+  useShortcutAction("closeTab", () => {
+    if (storeRef.current.activeTabId) {
+      storeRef.current.closeTab(storeRef.current.activeTabId)
+    }
+  })
+  useShortcutAction("closeSplitPane", () => {
+    if (storeRef.current.splitNoteId) {
+      storeRef.current.closeSplit()
+    }
+  })
+
+  function resolveDraggedNote(e: React.DragEvent) {
+    let noteId: string | null = null
+    let title: string | null = null
+
+    const tab = getDraggedTab()
+    if (tab) {
+      noteId = tab.noteId
+      title = tab.title
+    } else {
+      const raw = e.dataTransfer.getData("application/openvlt-note")
+      if (raw) {
+        try {
+          const data = JSON.parse(raw)
+          noteId = data.noteId
+          title = data.title
+        } catch {}
       }
     }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
+
+    return noteId && title ? { noteId, title } : null
+  }
 
   function handleDrop(e: React.DragEvent, side: "left" | "right") {
     e.preventDefault()
     setDropSide(null)
-    const tab = getDraggedTab()
-    if (!tab) return
+
+    const note = resolveDraggedNote(e)
+    if (!note) return
 
     if (side === "right") {
-      openSplit(tab.noteId, tab.title)
+      openSplit(note.noteId, note.title)
     } else {
       // Dropped on left — make it active, current active goes to split
       const currentActive = tabs.find((t) => t.noteId === activeTabId)
-      if (currentActive && currentActive.noteId !== tab.noteId) {
+      if (currentActive && currentActive.noteId !== note.noteId) {
         openSplit(currentActive.noteId, currentActive.title)
       }
-      openTab(tab.noteId, tab.title)
+      openTab(note.noteId, note.title)
     }
   }
 
+  function handleEmptyDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDropSide(null)
+    setIsDraggingTab(false)
+
+    const note = resolveDraggedNote(e)
+    if (!note) return
+
+    openTab(note.noteId, note.title)
+  }
+
   if (tabs.length === 0) {
+    const hour = new Date().getHours()
+    const greeting =
+      hour < 5
+        ? "Burning the midnight oil?"
+        : hour < 12
+          ? "Good morning"
+          : hour < 17
+            ? "Good afternoon"
+            : hour < 21
+              ? "Good evening"
+              : "Winding down?"
+    const mascot =
+      hour < 5 || hour >= 21 ? "/sleep.svg" : hour < 12 ? "/flower.svg" : "/celebrate.svg"
+    const quote = getMascotQuote(hour)
+    const recentNotes = recentlyClosed
+      .filter((t) => !t.noteId.startsWith("__"))
+      .slice(0, 5)
+
     return (
-      <div className="flex h-svh min-w-0 flex-col overflow-hidden">
+      <div
+        className="flex h-svh min-w-0 flex-col overflow-hidden"
+        onDragOver={(e) => {
+          if (
+            getDraggedTab() ||
+            e.dataTransfer.types.includes("application/openvlt-note")
+          ) {
+            e.preventDefault()
+            setDropSide("left")
+          }
+        }}
+        onDragLeave={() => setDropSide(null)}
+        onDrop={handleEmptyDrop}
+      >
         <div className="flex h-9 shrink-0 items-center border-b bg-background px-2">
           <SidebarTrigger className="-ml-1" />
         </div>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-muted">
-            <FileTextIcon className="size-8 text-muted-foreground" />
-          </div>
-          <div>
-            <h2 className="text-lg font-medium">No note selected</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Select a note from the sidebar or create a new one
-            </p>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs">
-                {mod}
-              </kbd>
-              <span>+</span>
-              <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs">
-                O
-              </kbd>
-              <span>new note</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs">
-                {mod}
-              </kbd>
-              <span>+</span>
-              <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs">
-                K
-              </kbd>
-              <span>command palette</span>
-            </div>
-          </div>
+        <div
+          className={`flex flex-1 flex-col items-center justify-center gap-6 text-center transition-colors ${
+            dropSide
+              ? "border-2 border-dashed border-primary/50 bg-primary/5"
+              : ""
+          }`}
+        >
+          {dropSide ? (
+            <>
+              <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10">
+                <FileTextIcon className="size-8 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-medium">Drop to open</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Release to open this note
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Hero: mascot + greeting */}
+              <div className="flex flex-col items-center gap-3">
+                <Image
+                  src={mascot}
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="animate-[bounce_3s_ease-in-out_infinite] opacity-80 dark:invert"
+                  priority
+                />
+                <div className="text-center">
+                  <h2 className="text-lg font-medium">
+                    {greeting}{userName ? `, ${userName}` : ""}
+                  </h2>
+                  <p className="mt-1 text-sm italic text-muted-foreground">
+                    &ldquo;{quote}&rdquo;
+                  </p>
+                </div>
+              </div>
+
+              {/* Action row: shortcuts as clickable pills */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new KeyboardEvent("keydown", {
+                        key: "o",
+                        metaKey: true,
+                      }),
+                    )
+                  }
+                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <ShortcutKeys binding={getBinding("newNote")} />
+                  <span>New note</span>
+                </button>
+                <button
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new Event("openvlt:open-command-palette"),
+                    )
+                  }
+                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <ShortcutKeys binding={getBinding("toggleCommandPalette")} />
+                  <span>Command palette</span>
+                </button>
+              </div>
+
+              {/* Recently closed */}
+              {recentNotes.length > 0 && (
+                <div className="mt-4 w-full max-w-xs">
+                  <table className="w-full">
+                    <tbody>
+                      {recentNotes.map((note) => (
+                        <tr
+                          key={note.noteId}
+                          onClick={() => reopenClosedTab(note.noteId)}
+                          className="group cursor-pointer border-b border-border/30 last:border-b-0"
+                        >
+                          <td className="py-2.5 pr-3 text-sm text-muted-foreground/60 transition-colors group-hover:text-foreground">
+                            <span className="truncate block max-w-[200px]">
+                              {note.title}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right text-xs text-muted-foreground/30 transition-colors group-hover:text-muted-foreground">
+                            {formatClosedTime(note.closedAt)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     )
@@ -246,6 +459,20 @@ export function TabContainer() {
               >
                 <TrashPanel />
               </div>
+            ) : tab.noteId === "__bookmarks__" ? (
+              <div
+                key={tab.noteId}
+                className={tab.noteId === activeTabId ? "h-full" : "hidden"}
+              >
+                <BookmarksListPanel />
+              </div>
+            ) : tab.noteId === "__search__" ? (
+              <div
+                key={tab.noteId}
+                className={tab.noteId === activeTabId ? "h-full" : "hidden"}
+              >
+                <SearchPanel />
+              </div>
             ) : tab.noteId.startsWith("__dbview_") ? (
               <div
                 key={tab.noteId}
@@ -287,6 +514,10 @@ export function TabContainer() {
                 <NotesListPanel />
               ) : splitNoteId === "__trash__" ? (
                 <TrashPanel />
+              ) : splitNoteId === "__bookmarks__" ? (
+                <BookmarksListPanel />
+              ) : splitNoteId === "__search__" ? (
+                <SearchPanel />
               ) : splitNoteId.startsWith("__dbview_") ? (
                 <DatabaseViewPanel viewId={splitNoteId.slice(9, -2)} />
               ) : (

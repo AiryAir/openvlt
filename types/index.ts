@@ -450,3 +450,10 @@ export interface DatabaseViewRow {
   updatedAt: string
   properties: Record<string, string | number | boolean | string[] | null>
 }
+
+export interface MarkdownEmbedRef {
+  noteId: string
+  anchor: string
+  anchorType: "heading" | "block-id"
+  noteTitle?: string
+}
