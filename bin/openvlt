@@ -180,7 +180,7 @@ cmd_update() {
   git pull --ff-only origin main
 
   echo -e "${DIM}Installing dependencies...${NC}"
-  bun install --frozen-lockfile
+  bun install
 
   echo -e "${DIM}Building...${NC}"
   bun run build

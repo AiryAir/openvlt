@@ -35,6 +35,7 @@ import { LockDialog } from "@/components/lock-dialog"
 import { addBookmark } from "@/components/bookmarks-panel"
 import { IconPicker } from "@/components/icon-picker"
 import { toast } from "sonner"
+import { confirmDialog } from "@/lib/dialogs"
 import { TimeMachinePanel } from "@/components/history/time-machine-panel"
 import type { NoteMetadata } from "@/types/note"
 
@@ -256,6 +257,13 @@ export function NoteHeader({ note, isSplit = false, pane = "main", toolbarSlot }
   }
 
   async function handleDelete() {
+    const confirmed = await confirmDialog({
+      title: "Move to trash",
+      description: `Move "${title || "Untitled"}" to trash?`,
+      confirmLabel: "Move to trash",
+      destructive: true,
+    })
+    if (!confirmed) return
     await fetch(`/api/notes/${note.id}`, { method: "DELETE" })
     window.dispatchEvent(new Event("openvlt:tree-refresh"))
     closeTab(note.id)
@@ -533,7 +541,7 @@ export function NoteHeader({ note, isSplit = false, pane = "main", toolbarSlot }
                 </button>
                 <button
                   onClick={() => { handleDelete(); setMoreOpen(false) }}
-                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive transition-colors hover:bg-accent"
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10"
                 >
                   <TrashIcon className="size-3.5" />
                   Move to trash

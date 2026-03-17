@@ -153,7 +153,7 @@ clone_and_build() {
   fi
 
   info "Installing dependencies..."
-  bun install --frozen-lockfile
+  bun install
 
   info "Building (this may take a minute)..."
   bun run build

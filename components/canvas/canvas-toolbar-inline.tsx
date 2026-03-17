@@ -319,7 +319,7 @@ export function CanvasToolbarInline({ editor, pageSize: initialPageSize, backgro
                     }
                     setPenSettingsOpen(null)
                   }}
-                  className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] text-destructive transition-colors hover:bg-accent"
+                  className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] text-destructive transition-colors hover:bg-destructive/10"
                 >
                   <Trash2Icon className="size-3" />
                   Delete preset

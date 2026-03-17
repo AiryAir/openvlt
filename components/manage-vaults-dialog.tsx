@@ -324,7 +324,7 @@ export function ManageVaultsDialog({
                             onClick={() => handleDelete(vault)}
                             disabled={deletingId === vault.id}
                             title="Delete vault"
-                            className="text-muted-foreground hover:text-destructive"
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                           >
                             {deletingId === vault.id ? (
                               <LoaderIcon className="size-4 animate-spin" />

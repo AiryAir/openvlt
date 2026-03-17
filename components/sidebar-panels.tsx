@@ -49,6 +49,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { SidebarTree } from "@/components/sidebar-tree"
+import { useTabStore } from "@/lib/stores/tab-store"
 import { BookmarksPanel } from "@/components/bookmarks-panel"
 import {
   useShortcuts,
@@ -224,20 +225,132 @@ export function FilesPanel({
 }
 
 export function SearchPanel() {
-  return (
-    <div className="flex flex-1 flex-col overflow-hidden p-3">
-      <button
-        onClick={() =>
-          window.dispatchEvent(new Event("openvlt:open-command-palette"))
+  const { openTab } = useTabStore()
+  const [query, setQuery] = React.useState("")
+  const [results, setResults] = React.useState<
+    { id: string; title: string; snippet?: string }[]
+  >([])
+  const [loading, setLoading] = React.useState(false)
+  const [searched, setSearched] = React.useState(false)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  React.useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  function handleSearch(q: string) {
+    setQuery(q)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    if (!q.trim()) {
+      setResults([])
+      setSearched(false)
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        // Search both titles and content in parallel
+        const [titleRes, contentRes] = await Promise.all([
+          fetch(
+            `/api/notes/search-titles?q=${encodeURIComponent(q.trim())}`
+          ),
+          fetch(
+            `/api/notes/search-content?q=${encodeURIComponent(q.trim())}`
+          ),
+        ])
+        const titles: { id: string; title: string }[] = titleRes.ok
+          ? await titleRes.json()
+          : []
+        const content: { id: string; title: string; snippet: string }[] =
+          contentRes.ok ? await contentRes.json() : []
+
+        // Merge: title matches first, then content matches (deduplicated)
+        const seen = new Set<string>()
+        const merged: { id: string; title: string; snippet?: string }[] = []
+        for (const t of titles) {
+          seen.add(t.id)
+          merged.push(t)
         }
-        className="flex h-9 w-full items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-      >
-        <SearchIcon className="size-4 shrink-0" />
-        <span className="flex-1 text-left">Search notes...</span>
-      </button>
-      <p className="mt-4 text-center text-xs text-muted-foreground">
-        Use the search bar or the command palette to find notes.
-      </p>
+        for (const c of content) {
+          if (!seen.has(c.id)) {
+            seen.add(c.id)
+            merged.push(c)
+          }
+        }
+        setResults(merged)
+        setSearched(true)
+      } catch {
+        setResults([])
+        setSearched(true)
+      } finally {
+        setLoading(false)
+      }
+    }, 200)
+  }
+
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="shrink-0 p-2">
+        <div className="relative">
+          <SearchIcon className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Search notes..."
+            className="h-8 w-full rounded-md border bg-transparent pr-2 pl-8 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {loading && (
+          <div className="flex justify-center py-6">
+            <div className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+          </div>
+        )}
+
+        {!loading && searched && results.length === 0 && (
+          <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+            No results for "{query}"
+          </div>
+        )}
+
+        {!loading && results.length > 0 && (
+          <div className="space-y-0.5 px-1">
+            {results.map((result) => (
+              <button
+                key={result.id}
+                onClick={() => openTab(result.id, result.title)}
+                className="flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent"
+              >
+                <span className="flex items-center gap-2 text-sm">
+                  <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{result.title}</span>
+                </span>
+                {result.snippet && (
+                  <span className="truncate pl-5.5 text-xs text-muted-foreground">
+                    {result.snippet
+                      .replace(/<<|>>/g, "")
+                      .replace(/\.\.\./g, "...")}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!loading && !searched && (
+          <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+            Search by title or content
+          </div>
+        )}
+      </div>
     </div>
   )
 }

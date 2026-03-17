@@ -191,7 +191,7 @@
 /* ── Base editor ── */
 .tiptap {
   outline: none;
-  padding: var(--editor-top) var(--editor-right) 40vh var(--editor-left);
+  padding: 0 var(--editor-right) 40vh var(--editor-left);
   min-height: calc(100svh - 3.5rem);
   position: relative;
   overflow-wrap: break-word;
@@ -216,6 +216,14 @@
   margin-top: 1em;
   margin-bottom: 0.5em;
   position: relative;
+}
+
+/* First element in the editor: kill the top margin so it sits
+   tight against the properties bar / cover image above */
+.tiptap > :first-child,
+.tiptap > .ProseMirror > :first-child,
+.ProseMirror > :first-child {
+  margin-top: 0 !important;
 }
 
 .tiptap h2 {

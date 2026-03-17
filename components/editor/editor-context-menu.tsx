@@ -95,7 +95,7 @@ export function EditorContextMenu({
                   key={item.id}
                   onSelect={item.action}
                   disabled={item.disabled}
-                  className={item.destructive ? "text-destructive" : ""}
+                  variant={item.destructive ? "destructive" : "default"}
                 >
                   {item.icon && (
                     <item.icon className="mr-2 size-4 shrink-0" />

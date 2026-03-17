@@ -88,11 +88,7 @@ export function confirmDialog(
                 {opts.cancelLabel || "Cancel"}
               </AlertDialogCancel>
               <AlertDialogAction
-                className={
-                  opts.destructive
-                    ? "bg-destructive text-white hover:bg-destructive/90"
-                    : undefined
-                }
+                variant={opts.destructive ? "destructive" : "default"}
                 onClick={() => {
                   setOpen(false)
                   resolve(true)

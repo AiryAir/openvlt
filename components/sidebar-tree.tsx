@@ -79,6 +79,24 @@ function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text)
 }
 
+/** Walk tree to collect all ancestor folder IDs for a given node ID */
+function findAncestorFolderIds(
+  nodes: TreeNode[],
+  targetId: string,
+  ancestors: string[] = []
+): string[] | null {
+  for (const node of nodes) {
+    if (node.id === targetId) return ancestors
+    if (node.children) {
+      const nextAncestors =
+        node.type === "folder" ? [...ancestors, node.id] : ancestors
+      const found = findAncestorFolderIds(node.children, targetId, nextAncestors)
+      if (found !== null) return found
+    }
+  }
+  return null
+}
+
 // ── Expanded state (persisted to localStorage) ──
 
 const EXPANDED_KEY = "openvlt:sidebar-expanded"
@@ -143,6 +161,22 @@ export function SidebarTree({
 }: SidebarTreeProps) {
   const [draggedNode, setDraggedNode] = React.useState<TreeNode | null>(null)
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(loadExpanded)
+
+  // Auto-expand ancestor folders to reveal the active note (e.g. on refresh)
+  React.useEffect(() => {
+    if (!activeItemId || nodes.length === 0) return
+    const ancestors = findAncestorFolderIds(nodes, activeItemId)
+    if (!ancestors || ancestors.length === 0) return
+
+    setExpandedIds((prev) => {
+      const missing = ancestors.filter((id) => !prev.has(id))
+      if (missing.length === 0) return prev
+      const next = new Set(prev)
+      for (const id of missing) next.add(id)
+      saveExpanded(next)
+      return next
+    })
+  }, [activeItemId, nodes])
 
   const expandedCtx = React.useMemo(
     () => ({
@@ -399,6 +433,13 @@ function TreeItem({
         closeNotes(node.children)
       }
     } else {
+      const confirmed = await confirmDialog({
+        title: "Move to trash",
+        description: `Move "${node.name}" to trash?`,
+        confirmLabel: "Move to trash",
+        destructive: true,
+      })
+      if (!confirmed) return
       await fetch(`/api/notes/${node.id}`, { method: "DELETE" })
       closeTab(node.id)
     }
@@ -599,7 +640,7 @@ function TreeItem({
         <PencilIcon className="mr-2 size-4" />
         Rename
       </ContextMenuItem>
-      <ContextMenuItem onClick={handleDelete} className="text-destructive">
+      <ContextMenuItem onClick={handleDelete} variant="destructive">
         <TrashIcon className="mr-2 size-4" />
         Delete
       </ContextMenuItem>
@@ -647,7 +688,7 @@ function TreeItem({
         <PencilIcon className="mr-2 size-4" />
         Rename
       </ContextMenuItem>
-      <ContextMenuItem onClick={handleDelete} className="text-destructive">
+      <ContextMenuItem onClick={handleDelete} variant="destructive">
         <TrashIcon className="mr-2 size-4" />
         Delete
       </ContextMenuItem>
@@ -904,7 +945,7 @@ function AttachmentItem({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleDelete}
-                className="text-destructive"
+                variant="destructive"
               >
                 <TrashIcon className="mr-2 size-4" />
                 Delete
@@ -922,7 +963,7 @@ function AttachmentItem({
           <DownloadIcon className="mr-2 size-4" />
           Download
         </ContextMenuItem>
-        <ContextMenuItem onClick={handleDelete} className="text-destructive">
+        <ContextMenuItem onClick={handleDelete} variant="destructive">
           <TrashIcon className="mr-2 size-4" />
           Delete
         </ContextMenuItem>
