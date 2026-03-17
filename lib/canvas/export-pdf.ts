@@ -65,7 +65,7 @@ export function exportCanvasToPdf(
     format: [pWidth, pHeight],
   })
 
-  const scale = 2 // High-res rendering
+  const scale = 4 // High-res rendering (4x for crisp strokes in print)
 
   for (let page = 0; page < pCount; page++) {
     if (page > 0) pdf.addPage([pWidth, pHeight])
