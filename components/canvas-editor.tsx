@@ -523,12 +523,15 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
         const storeSnapshot = editor.store.getStoreSnapshot()
         const data = JSON.stringify({
           type: "openvlt-canvas",
-          version: 1,
+          version: 2,
           document: storeSnapshot,
           settings: {
             pageSize: pageSizeRef.current,
             background: backgroundRef.current,
             pageCount: pageCountRef.current,
+            ruleStyle: ruleStyleRef.current,
+            customSpacing: customSpacingRef.current,
+            pressureSensitivity: pressureSensitivityRef.current,
           },
         })
         await fetch(`/api/notes/${noteId}`, {
@@ -1343,13 +1346,15 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
         for (let i = 0; i < pageCount - 1; i++) {
           const gapTop = ((i + 1) * pd.height + i * PAGE_GAP + cy) * z
           const gapBottom = ((i + 1) * (pd.height + PAGE_GAP) + cy) * z
+          const clampedTop = Math.max(0, gapTop)
+          const clampedHeight = Math.max(0, gapBottom - clampedTop)
           overlays.push(
             <div key={`gap-${i}`} style={{
               position: "absolute",
               left: Math.max(0, pageLeftScreen),
-              top: Math.max(0, gapTop),
+              top: clampedTop,
               width: Math.max(0, pageRightScreen - pageLeftScreen),
-              height: Math.max(0, gapBottom - gapTop),
+              height: clampedHeight,
               background: "#f0f0f0", pointerEvents: "none", zIndex: 2,
             }} />
           )
