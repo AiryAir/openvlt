@@ -104,6 +104,15 @@ export async function PUT(
       updateNoteCover(noteId, body.coverImage || null, user.id, vaultId)
     }
 
+    if (body.aliases !== undefined) {
+      const aliases = Array.isArray(body.aliases)
+        ? body.aliases.filter((a: unknown) => typeof a === "string" && a)
+        : []
+      const db = (await import("@/lib/db")).getDb()
+      db.prepare("UPDATE notes SET aliases = ? WHERE id = ? AND user_id = ? AND vault_id = ?")
+        .run(aliases.length > 0 ? JSON.stringify(aliases) : null, noteId, user.id, vaultId)
+    }
+
     if (body.parentId !== undefined && body.action === "move") {
       const moved = moveNote(noteId, body.parentId, user.id, vaultId)
       return NextResponse.json(moved)

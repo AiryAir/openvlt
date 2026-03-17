@@ -5,6 +5,10 @@ import {
 } from "@/lib/auth/webauthn"
 import { createSession } from "@/lib/auth/service"
 import { getDb } from "@/lib/db"
+import {
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_MS,
+} from "@/lib/constants"
 
 /** POST: start or complete authentication */
 export async function POST(request: NextRequest) {
@@ -47,12 +51,12 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      res.cookies.set("session", session.token, {
+      res.cookies.set(SESSION_COOKIE_NAME, session.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+        maxAge: SESSION_MAX_AGE_MS / 1000,
       })
 
       return res

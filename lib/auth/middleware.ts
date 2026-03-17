@@ -1,5 +1,5 @@
 import { cookies } from "next/headers"
-import { SESSION_COOKIE_NAME } from "@/lib/constants"
+import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS } from "@/lib/constants"
 import { validateSession } from "@/lib/auth/service"
 import { getActiveVault } from "@/lib/vaults/service"
 import type { User } from "@/types"
@@ -24,6 +24,20 @@ export async function getSession(): Promise<{
 
   const result = validateSession(token)
   if (!result) return null
+
+  // Refresh cookie expiry to match the (possibly extended) DB session
+  try {
+    const cookieStore = await cookies()
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_MAX_AGE_MS / 1000,
+    })
+  } catch {
+    // cookies().set can fail in certain RSC contexts, ignore
+  }
 
   return { user: result.user, token: result.session.token }
 }

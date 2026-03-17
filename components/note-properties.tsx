@@ -121,7 +121,7 @@ export function NoteProperties({ noteId }: NotePropertiesProps) {
   }
 
   return (
-    <div className="border-b px-[calc(var(--editor-left,120px))] py-2">
+    <div className="px-[calc(var(--editor-left,120px))] py-2">
       <button
         onClick={() => setExpanded(!expanded)}
         className="mb-1 flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"

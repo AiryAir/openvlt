@@ -163,6 +163,160 @@ const COMMANDS: SlashCommandItem[] = [
     },
   },
   {
+    title: "Math Block",
+    description: "LaTeX equation block",
+    icon: "∑",
+    command: (editor, range) => {
+      editor.chain().focus().deleteRange(range).run()
+      ;(editor.commands as any).setMathBlock({ content: "" })
+    },
+  },
+  {
+    title: "Inline Math",
+    description: "Inline LaTeX expression",
+    icon: "𝑥",
+    command: (editor, range) => {
+      editor.chain().focus().deleteRange(range).run()
+      ;(editor.commands as any).setInlineMath({ content: "" })
+    },
+  },
+  {
+    title: "Mermaid Diagram",
+    description: "Flowchart, sequence, or Gantt",
+    icon: "◇",
+    command: (editor, range) => {
+      editor.chain().focus().deleteRange(range).run()
+      ;(editor.commands as any).setMermaidBlock({
+        content: "graph TD\n    A[Start] --> B[End]",
+      })
+    },
+  },
+  {
+    title: "Inline Database",
+    description: "Embed a database table, kanban, or calendar",
+    icon: "⊞",
+    command: async (editor, range) => {
+      editor.chain().focus().deleteRange(range).run()
+
+      // Fetch existing views, let user pick one or create new
+      let views: { id: string; name: string; viewType: string }[] = []
+      try {
+        const res = await fetch("/api/database-views")
+        if (res.ok) {
+          const data = await res.json()
+          views = Array.isArray(data) ? data : data.views ?? []
+        }
+      } catch {
+        // ignore
+      }
+
+      if (views.length > 0) {
+        // Show a prompt with the view names
+        const list = views.map((v, i) => `${i + 1}. ${v.name} (${v.viewType})`).join("\n")
+        const input = await promptDialog({
+          title: "Inline Database",
+          description: `Enter a number to embed an existing view, or a name to create a new one:\n${list}`,
+          placeholder: "View name or number",
+        })
+        if (!input) return
+
+        const num = parseInt(input, 10)
+        if (num > 0 && num <= views.length) {
+          ;(editor.commands as any).setInlineDatabase({ viewId: views[num - 1].id })
+        } else {
+          // Create a new view
+          const res = await fetch("/api/database-views", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: input, viewType: "table" }),
+          })
+          if (res.ok) {
+            const view = await res.json()
+            ;(editor.commands as any).setInlineDatabase({ viewId: view.id })
+          }
+        }
+      } else {
+        // No views exist, create one
+        const name = await promptDialog({
+          title: "Inline Database",
+          description: "Enter a name for the new database view:",
+          placeholder: "My Database",
+        })
+        if (!name) return
+        const res = await fetch("/api/database-views", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, viewType: "table" }),
+        })
+        if (res.ok) {
+          const view = await res.json()
+          ;(editor.commands as any).setInlineDatabase({ viewId: view.id })
+        }
+      }
+    },
+  },
+  {
+    title: "Synced Block",
+    description: "Reusable block synced across notes",
+    icon: "🔗",
+    command: async (editor, range) => {
+      editor.chain().focus().deleteRange(range).run()
+
+      // Fetch existing synced blocks
+      let blocks: { id: string; content: string }[] = []
+      try {
+        const res = await fetch("/api/synced-blocks")
+        if (res.ok) blocks = await res.json()
+      } catch {
+        // ignore
+      }
+
+      if (blocks.length > 0) {
+        const list = blocks
+          .slice(0, 10)
+          .map((b, i) => `${i + 1}. ${b.content.slice(0, 50).replace(/\n/g, " ")}${b.content.length > 50 ? "..." : ""}`)
+          .join("\n")
+        const input = await promptDialog({
+          title: "Synced Block",
+          description: `Enter a number to embed existing, or type content for a new block:\n${list}`,
+          placeholder: "Number or new content",
+        })
+        if (!input) return
+
+        const num = parseInt(input, 10)
+        if (num > 0 && num <= blocks.length) {
+          ;(editor.commands as any).setSyncedBlock({ blockId: blocks[num - 1].id })
+        } else {
+          const res = await fetch("/api/synced-blocks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: input }),
+          })
+          if (res.ok) {
+            const block = await res.json()
+            ;(editor.commands as any).setSyncedBlock({ blockId: block.id })
+          }
+        }
+      } else {
+        const content = await promptDialog({
+          title: "New Synced Block",
+          description: "Enter the content for this synced block:",
+          placeholder: "Content that stays in sync across notes...",
+        })
+        if (!content) return
+        const res = await fetch("/api/synced-blocks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+        })
+        if (res.ok) {
+          const block = await res.json()
+          ;(editor.commands as any).setSyncedBlock({ blockId: block.id })
+        }
+      }
+    },
+  },
+  {
     title: "Embed",
     description: "YouTube, tweet, or webpage",
     icon: "🔗",
@@ -209,9 +363,12 @@ export const SlashCommands = Extension.create({
           props.command(editor, range)
         },
         items: ({ query }: { query: string }): SlashCommandItem[] => {
-          return COMMANDS.filter((item) =>
-            item.title.toLowerCase().includes(query.toLowerCase())
-          ).slice(0, 10)
+          const q = query.toLowerCase()
+          return COMMANDS.filter(
+            (item) =>
+              item.title.toLowerCase().includes(q) ||
+              item.description.toLowerCase().includes(q)
+          )
         },
         render: () => {
           let popup: TippyInstance | undefined

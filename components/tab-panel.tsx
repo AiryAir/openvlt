@@ -7,7 +7,6 @@ import { ExcalidrawEditor } from "@/components/excalidraw-editor"
 import { CanvasEditor, type CanvasEditorState } from "@/components/canvas-editor"
 import { CanvasToolbarInline } from "@/components/canvas/canvas-toolbar-inline"
 import { LockPrompt } from "@/components/lock-dialog"
-import { NoteProperties } from "@/components/note-properties"
 import type { NoteMetadata } from "@/types"
 
 interface TabPanelProps {
@@ -127,7 +126,6 @@ export function TabPanel({ noteId, active, isSplit = false }: TabPanelProps) {
   return (
     <div className={`relative flex h-full min-w-0 flex-col overflow-hidden ${active ? "" : "hidden"}`}>
       <NoteHeader note={metadata} isSplit={isSplit} pane={isSplit ? "split" : "main"} toolbarSlot={canvasToolbar} />
-      {!isCanvas && !isExcalidraw && <NoteProperties noteId={metadata.id} />}
       {isCanvas ? (
         <CanvasEditor noteId={metadata.id} initialData={content} onEditorReady={setCanvasState} />
       ) : isExcalidraw ? (

@@ -87,6 +87,7 @@ export function getOrCreateDailyNote(
       noteType: "markdown",
       icon: (existing.icon as string) || null,
       coverImage: (existing.cover_image as string) || null,
+      aliases: [],
     }
   }
 

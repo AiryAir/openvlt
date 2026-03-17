@@ -13,6 +13,16 @@ import type { NoteMetadata, NoteType, NoteWithContent, VersionTrigger } from "@/
 
 const TRASH_AUTO_PURGE_DAYS = 30
 
+function parseAliases(raw: string | null | undefined): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((a: unknown) => typeof a === "string" && a) : []
+  } catch {
+    return []
+  }
+}
+
 function toMetadata(row: Record<string, unknown>): NoteMetadata {
   const db = getDb()
   const tagRows = db
@@ -40,6 +50,7 @@ function toMetadata(row: Record<string, unknown>): NoteMetadata {
     noteType: (row.note_type as NoteType) ?? "markdown",
     icon: (row.icon as string) || null,
     coverImage: (row.cover_image as string) || null,
+    aliases: parseAliases(row.aliases as string | null),
   }
 }
 
@@ -911,9 +922,9 @@ export function getBacklinks(
 
   const target = db
     .prepare(
-      "SELECT title FROM notes WHERE id = ? AND user_id = ? AND vault_id = ?"
+      "SELECT title, aliases FROM notes WHERE id = ? AND user_id = ? AND vault_id = ?"
     )
-    .get(noteId, userId, vaultId) as { title: string } | undefined
+    .get(noteId, userId, vaultId) as { title: string; aliases: string | null } | undefined
 
   if (!target) return []
 
@@ -929,6 +940,8 @@ export function getBacklinks(
 
   const results: { id: string; title: string; linked: boolean }[] = []
   const titleLower = target.title.toLowerCase()
+  const aliases = parseAliases(target.aliases)
+  const aliasesLower = aliases.map((a) => a.toLowerCase())
 
   for (const note of allNotes) {
     try {
@@ -936,16 +949,23 @@ export function getBacklinks(
         safeResolvePath(vaultRoot, note.file_path),
         "utf-8"
       )
+      // Check for wiki-links using title or any alias
       const hasWikiLink =
-        content.includes(`[[${target.title}]]`) || content.includes(noteId)
+        content.includes(`[[${target.title}]]`) ||
+        content.includes(noteId) ||
+        aliases.some((a) => content.includes(`[[${a}]]`))
 
       if (hasWikiLink) {
         results.push({ id: note.id, title: note.title, linked: true })
-      } else if (
-        titleLower.length >= 3 &&
-        content.toLowerCase().includes(titleLower)
-      ) {
-        results.push({ id: note.id, title: note.title, linked: false })
+      } else {
+        // Check for unlinked mentions of title or aliases
+        const contentLower = content.toLowerCase()
+        const hasMention =
+          (titleLower.length >= 3 && contentLower.includes(titleLower)) ||
+          aliasesLower.some((a) => a.length >= 3 && contentLower.includes(a))
+        if (hasMention) {
+          results.push({ id: note.id, title: note.title, linked: false })
+        }
       }
     } catch {}
   }
@@ -959,14 +979,15 @@ export function searchNotesByTitle(
   vaultId: string
 ): { id: string; title: string }[] {
   const db = getDb()
+  // Search by title or aliases
   const rows = db
     .prepare(
       `SELECT id, title FROM notes
-       WHERE title LIKE ? AND is_trashed = 0 AND user_id = ? AND vault_id = ?
+       WHERE (title LIKE ? OR aliases LIKE ?) AND is_trashed = 0 AND user_id = ? AND vault_id = ?
        ORDER BY title
        LIMIT 15`
     )
-    .all(`%${query}%`, userId, vaultId) as { id: string; title: string }[]
+    .all(`%${query}%`, `%${query}%`, userId, vaultId) as { id: string; title: string }[]
   return rows
 }
 
@@ -976,13 +997,32 @@ export function resolveNoteByTitle(
   vaultId: string
 ): { id: string; title: string } | null {
   const db = getDb()
+  // First try exact title match
   const row = db
     .prepare(
       `SELECT id, title FROM notes
        WHERE title = ? COLLATE NOCASE AND is_trashed = 0 AND user_id = ? AND vault_id = ?`
     )
     .get(title, userId, vaultId) as { id: string; title: string } | undefined
-  return row ?? null
+  if (row) return row
+
+  // Then check aliases (stored as JSON arrays)
+  const allNotes = db
+    .prepare(
+      `SELECT id, title, aliases FROM notes
+       WHERE aliases IS NOT NULL AND is_trashed = 0 AND user_id = ? AND vault_id = ?`
+    )
+    .all(userId, vaultId) as { id: string; title: string; aliases: string }[]
+
+  const lowerTitle = title.toLowerCase()
+  for (const note of allNotes) {
+    const aliases = parseAliases(note.aliases)
+    if (aliases.some((a) => a.toLowerCase() === lowerTitle)) {
+      return { id: note.id, title: note.title }
+    }
+  }
+
+  return null
 }
 
 /**

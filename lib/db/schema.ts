@@ -300,11 +300,35 @@ export function initSchema(database: Database.Database) {
       folder_id TEXT,
       view_type TEXT NOT NULL DEFAULT 'table' CHECK(view_type IN ('table','kanban','calendar')),
       config TEXT NOT NULL DEFAULT '{}',
+      source_note_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (vault_id) REFERENCES vaults(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+    );
+
+    -- Synced blocks: content fragments shared across notes
+    CREATE TABLE IF NOT EXISTS synced_blocks (
+      id TEXT PRIMARY KEY,
+      vault_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (vault_id) REFERENCES vaults(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_synced_blocks_vault ON synced_blocks(vault_id);
+
+    -- Track which notes reference each synced block
+    CREATE TABLE IF NOT EXISTS synced_block_refs (
+      synced_block_id TEXT NOT NULL,
+      note_id TEXT NOT NULL,
+      PRIMARY KEY (synced_block_id, note_id),
+      FOREIGN KEY (synced_block_id) REFERENCES synced_blocks(id) ON DELETE CASCADE,
+      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
     );
   `)
 }

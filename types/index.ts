@@ -32,6 +32,8 @@ export interface NoteMetadata {
   noteType: NoteType
   icon: string | null
   coverImage: string | null
+  /** Alternative names for wiki-link resolution */
+  aliases: string[]
   /** IDs of notes that link to this note */
   backlinks?: string[]
 }
@@ -428,6 +430,7 @@ export interface DatabaseViewConfig {
   filters: DatabaseViewFilter[]
   groupByPropertyId?: string
   calendarPropertyId?: string
+  calendarEndPropertyId?: string
 }
 
 export interface DatabaseView {
@@ -456,4 +459,21 @@ export interface MarkdownEmbedRef {
   anchor: string
   anchorType: "heading" | "block-id"
   noteTitle?: string
+}
+
+// ── Synced Blocks ──
+
+export interface SyncedBlock {
+  id: string
+  vaultId: string
+  userId: string
+  content: string
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SyncedBlockRef {
+  syncedBlockId: string
+  noteId: string
 }

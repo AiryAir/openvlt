@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "katex/dist/katex.min.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -1023,6 +1024,16 @@
   font-size: 0.85em;
 }
 
+/* Raw wiki-link text: [[...]] or unclosed [[... while editing */
+.wiki-link-raw {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  border-radius: 2px;
+}
+
 /* ── Wiki-link suggestion popup ── */
 .wiki-link-list {
   display: flex;
@@ -1074,4 +1085,90 @@
 
 .wiki-link-empty:hover {
   background: transparent;
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * MATH BLOCKS (LaTeX / KaTeX)
+ * ══════════════════════════════════════════════════════
+ */
+
+.math-block-wrapper {
+  transition: border-color 0.15s ease;
+}
+
+.math-block-wrapper:hover {
+  border-color: var(--primary);
+}
+
+.math-block-wrapper .katex-display {
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.math-block-editor {
+  min-height: 60px;
+  font-family: var(--font-mono, monospace);
+}
+
+/* Inline math */
+.inline-math-node {
+  display: inline;
+  vertical-align: baseline;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0 2px;
+  transition: background-color 0.15s ease;
+}
+
+.inline-math-node:hover {
+  background: var(--accent);
+}
+
+.inline-math-node.empty {
+  color: var(--muted-foreground);
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+.inline-math-node.error {
+  color: var(--destructive);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+}
+
+.inline-math-node .katex {
+  font-size: 1em;
+}
+
+.inline-math-node.ProseMirror-selectednode {
+  background: var(--accent);
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/*
+ * ══════════════════════════════════════════════════════
+ * MERMAID DIAGRAM BLOCKS
+ * ══════════════════════════════════════════════════════
+ */
+
+.mermaid-block-wrapper {
+  transition: border-color 0.15s ease;
+}
+
+.mermaid-block-wrapper:hover {
+  border-color: var(--primary);
+}
+
+.mermaid-block-display svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-block-editor {
+  min-height: 100px;
+  font-family: var(--font-mono, monospace);
 }

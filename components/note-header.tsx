@@ -16,6 +16,8 @@ import {
   ImageIcon,
   SmileIcon,
   FileTextIcon,
+  TagIcon,
+  PlusIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,6 +25,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { useTabStore } from "@/lib/stores/tab-store"
 import { LockDialog } from "@/components/lock-dialog"
 import { addBookmark } from "@/components/bookmarks-panel"
@@ -61,6 +68,8 @@ export function NoteHeader({ note, isSplit = false, pane = "main", toolbarSlot }
   const [isLocked, setIsLocked] = React.useState(note.isLocked)
   const [isBookmarked, setIsBookmarked] = React.useState(false)
   const [lockDialogOpen, setLockDialogOpen] = React.useState(false)
+  const [aliases, setAliases] = React.useState<string[]>(note.aliases ?? [])
+  const [newAlias, setNewAlias] = React.useState("")
   const [icon, setIcon] = React.useState<string | null>(note.icon)
   const [outlineOpen, setOutlineOpen] = React.useState(false)
   const [coverImage, setCoverImage] = React.useState<string | null>(
@@ -223,6 +232,29 @@ export function NoteHeader({ note, isSplit = false, pane = "main", toolbarSlot }
     }
   }
 
+  async function saveAliases(updated: string[]) {
+    setAliases(updated)
+    await fetch(`/api/notes/${note.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aliases: updated }),
+    })
+  }
+
+  function handleAddAlias() {
+    const alias = newAlias.trim()
+    if (!alias || aliases.includes(alias)) {
+      setNewAlias("")
+      return
+    }
+    saveAliases([...aliases, alias])
+    setNewAlias("")
+  }
+
+  function handleRemoveAlias(alias: string) {
+    saveAliases(aliases.filter((a) => a !== alias))
+  }
+
   async function handleDelete() {
     await fetch(`/api/notes/${note.id}`, { method: "DELETE" })
     window.dispatchEvent(new Event("openvlt:tree-refresh"))
@@ -344,6 +376,63 @@ export function NoteHeader({ note, isSplit = false, pane = "main", toolbarSlot }
                 {isBookmarked ? <BookmarkCheckIcon className="size-4 fill-primary text-primary" /> : <BookmarkPlusIcon className="size-4" />}
               </Button>
             </Tip>
+            <Popover>
+              <Tip label="Aliases">
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="shrink-0"
+                  >
+                    <TagIcon className={`size-4 ${aliases.length > 0 ? "text-primary" : ""}`} />
+                  </Button>
+                </PopoverTrigger>
+              </Tip>
+              <PopoverContent className="w-64 p-3" align="end">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  Aliases
+                </p>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Alternative names that resolve to this note when used in [[links]].
+                </p>
+                {aliases.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    {aliases.map((alias) => (
+                      <span
+                        key={alias}
+                        className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs"
+                      >
+                        {alias}
+                        <button
+                          onClick={() => handleRemoveAlias(alias)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <XIcon className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    handleAddAlias()
+                  }}
+                  className="flex gap-1.5"
+                >
+                  <input
+                    type="text"
+                    value={newAlias}
+                    onChange={(e) => setNewAlias(e.target.value)}
+                    placeholder="Add alias..."
+                    className="h-7 min-w-0 flex-1 rounded-md border bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
+                  />
+                  <Button type="submit" size="sm" className="h-7 text-xs" disabled={!newAlias.trim()}>
+                    <PlusIcon className="size-3" />
+                  </Button>
+                </form>
+              </PopoverContent>
+            </Popover>
             <Tip label={isFavorite ? "Remove from favorites" : "Add to favorites"}>
               <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={handleToggleFavorite}>
                 <StarIcon className={`size-4 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} />

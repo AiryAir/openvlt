@@ -19,6 +19,7 @@ import {
   BookmarkPlusIcon,
   ShuffleIcon,
   SparklesIcon,
+  LayoutTemplateIcon,
   TextSearchIcon,
 } from "lucide-react"
 import {
@@ -42,6 +43,7 @@ import {
 } from "@/lib/stores/shortcuts-store"
 import { addBookmark } from "@/components/bookmarks-panel"
 import { CreateFolderDialog } from "@/components/create-folder-dialog"
+import { TemplatePicker } from "@/components/template-picker"
 import type { NoteMetadata } from "@/types/note"
 
 export function CommandPalette() {
@@ -53,6 +55,7 @@ export function CommandPalette() {
   const [open, setOpen] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
   const [folderDialogOpen, setFolderDialogOpen] = React.useState(false)
+  const [templatePickerOpen, setTemplatePickerOpen] = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
@@ -350,6 +353,10 @@ export function CommandPalette() {
               <span>New Folder</span>
               <CommandShortcut><ShortcutKeys binding={getBinding("newFolder")} /></CommandShortcut>
             </CommandItem>
+            <CommandItem onSelect={() => { setOpen(false); setTemplatePickerOpen(true) }}>
+              <LayoutTemplateIcon className="size-4 text-muted-foreground" />
+              <span>New from Template</span>
+            </CommandItem>
             <CommandItem onSelect={handleOpenGraph}>
               <NetworkIcon className="size-4 text-muted-foreground" />
               <span>Graph View</span>
@@ -430,6 +437,11 @@ export function CommandPalette() {
       open={folderDialogOpen}
       onOpenChange={setFolderDialogOpen}
       onCreated={handleFolderCreated}
+    />
+
+    <TemplatePicker
+      open={templatePickerOpen}
+      onClose={() => setTemplatePickerOpen(false)}
     />
   </>
   )

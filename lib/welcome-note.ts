@@ -479,6 +479,61 @@ Images can be resized to these presets:
 
 ---
 
+## Math (LaTeX)
+
+openvlt supports LaTeX math rendering powered by KaTeX. Use it for equations, formulas, and scientific notation.
+
+### Inline Math
+
+Write inline expressions with single dollar signs: $E = mc^2$ or $\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$.
+
+### Block Math
+
+Use double dollar signs for display-mode equations:
+
+$$
+\\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}
+$$
+
+$$
+\\mathbf{F} = m\\mathbf{a} \\qquad \\nabla \\times \\mathbf{E} = -\\frac{\\partial \\mathbf{B}}{\\partial t} \\qquad i\\hbar\\frac{\\partial}{\\partial t}\\Psi = \\hat{H}\\Psi
+$$
+
+> **Tip:** Double-click any math block to edit the LaTeX source. Type \`/Math Block\` or \`/Inline Math\` from the slash menu.
+
+---
+
+## Mermaid Diagrams
+
+Create flowcharts, sequence diagrams, and more using Mermaid syntax inside fenced code blocks.
+
+\`\`\`mermaid
+graph TD
+    A[Open openvlt] --> B{New or existing?}
+    B -->|New| C[Create a vault]
+    B -->|Existing| D[Open your vault]
+    C --> E[Start writing]
+    D --> E
+    E --> F[Sync & backup]
+\`\`\`
+
+\`\`\`mermaid
+sequenceDiagram
+    participant User
+    participant Editor
+    participant Disk
+    participant SQLite
+    User->>Editor: Edit note
+    Editor->>Disk: Save .md file
+    Editor->>SQLite: Update metadata
+    SQLite-->>Editor: Confirm
+    Editor-->>User: Saved
+\`\`\`
+
+> **Tip:** Double-click any diagram to edit the Mermaid source. Type \`/Mermaid Diagram\` from the slash menu to insert one. Diagrams adapt to your current theme automatically.
+
+---
+
 ## Slash Commands
 
 Type \`/\` anywhere in the editor to open the command menu. Available commands:
@@ -489,6 +544,8 @@ Type \`/\` anywhere in the editor to open the command menu. Available commands:
 - \`/Table\`, \`/Horizontal Rule\`
 - \`/Callout\` (Note, Tip, Warning, Danger)
 - \`/Toggle Block\`
+- \`/Math Block\`, \`/Inline Math\`
+- \`/Mermaid Diagram\`
 
 ---
 

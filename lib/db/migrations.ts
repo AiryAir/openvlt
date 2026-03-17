@@ -607,6 +607,59 @@ const migrations: Migration[] = [
       `)
     },
   },
+  {
+    version: 12,
+    description: "Add note aliases",
+    up: (db) => {
+      try {
+        db.exec("ALTER TABLE notes ADD COLUMN aliases TEXT")
+      } catch {
+        // Column may already exist
+      }
+    },
+  },
+  {
+    version: 13,
+    description: "Add synced blocks and inline database support",
+    up: (db) => {
+      const hasColumn = (table: string, column: string) => {
+        const cols = db.pragma(`table_info(${table})`) as { name: string }[]
+        return cols.some((c) => c.name === column)
+      }
+
+      // Inline databases: link views to their source note
+      if (!hasColumn("database_views", "source_note_id")) {
+        db.exec("ALTER TABLE database_views ADD COLUMN source_note_id TEXT")
+      }
+
+      // Synced blocks: content fragments shared across notes
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS synced_blocks (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          content TEXT NOT NULL DEFAULT '',
+          version INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (vault_id) REFERENCES vaults(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_synced_blocks_vault ON synced_blocks(vault_id);
+      `)
+
+      // Track which notes reference each synced block
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS synced_block_refs (
+          synced_block_id TEXT NOT NULL,
+          note_id TEXT NOT NULL,
+          PRIMARY KEY (synced_block_id, note_id),
+          FOREIGN KEY (synced_block_id) REFERENCES synced_blocks(id) ON DELETE CASCADE,
+          FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+        );
+      `)
+    },
+  },
 ]
 
 export function runMigrations(db: Database.Database) {

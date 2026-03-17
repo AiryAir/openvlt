@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { ArrowRight, UserPlus } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -153,6 +154,16 @@ function ScrambleText({
 // ════════════════════════════════════════════════════════════════════
 export default function WelcomePage() {
   const [mounted, setMounted] = useState(false)
+  const router = useRouter()
+
+  // If user is already logged in, skip landing page and go to notes
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => {
+        if (r.ok) router.replace("/notes")
+      })
+      .catch(() => {})
+  }, [router])
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 100)

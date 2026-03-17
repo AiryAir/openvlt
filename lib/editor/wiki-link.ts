@@ -6,7 +6,7 @@ import type {
   SuggestionKeyDownProps,
 } from "@tiptap/suggestion"
 import tippy, { type Instance as TippyInstance } from "tippy.js"
-import { Plugin, PluginKey } from "@tiptap/pm/state"
+import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state"
 import { Decoration, DecorationSet } from "@tiptap/pm/view"
 
 export interface WikiLinkSuggestionItem {
@@ -51,6 +51,43 @@ function findWikiLinkSuggestionMatch(_config: {
       text: `[[${query}`,
     }
   }
+}
+
+/**
+ * Scan the document for raw `[[...]]` or unclosed `[[...` text patterns
+ * and return inline decorations that style them like wiki-links.
+ */
+function buildRawWikiDecorations(doc: any): DecorationSet {
+  const decorations: Decoration[] = []
+
+  doc.descendants((node: any, pos: number) => {
+    if (!node.isText || !node.text) return
+    const text = node.text as string
+
+    let searchFrom = 0
+    while (searchFrom < text.length) {
+      const openIdx = text.indexOf("[[", searchFrom)
+      if (openIdx === -1) break
+
+      const closeIdx = text.indexOf("]]", openIdx + 2)
+      const endIdx = closeIdx !== -1 ? closeIdx + 2 : text.length
+
+      // Highlight the entire [[...]] or [[... range
+      const from = pos + openIdx
+      const to = pos + endIdx
+
+      decorations.push(
+        Decoration.inline(from, to, {
+          class: "wiki-link-raw",
+        })
+      )
+
+      searchFrom = endIdx
+    }
+  })
+
+  if (decorations.length === 0) return DecorationSet.empty
+  return DecorationSet.create(doc, decorations)
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -126,68 +163,155 @@ export const WikiLink = Node.create({
   addProseMirrorPlugins() {
     const editor = this.editor
 
+    // Track the position of a wiki-link that was "exploded" into raw text
+    // so we can re-parse it when the cursor leaves
+    let explodedRange: { from: number; title: string } | null = null
+
     return [
-      // NodeView-like reveal: show [[title]] when selected
+      // Decompose wiki-link into raw text on click, recompose on leave
       new Plugin({
         key: wikiLinkPluginKey,
-        state: {
-          init() {
-            return DecorationSet.empty
-          },
-          apply(tr) {
-            const { selection } = tr
-            const decorations: Decoration[] = []
+        props: {
+          handleClick(view, pos, event) {
+            // Cmd/Ctrl+click: navigate
+            if (event.metaKey || event.ctrlKey) {
+              const $pos = view.state.doc.resolve(pos)
+              const node =
+                $pos.nodeAfter?.type.name === "wikiLink"
+                  ? $pos.nodeAfter
+                  : $pos.nodeBefore?.type.name === "wikiLink"
+                    ? $pos.nodeBefore
+                    : null
 
-            tr.doc.descendants((node, pos) => {
-              if (node.type.name !== "wikiLink") return
-
-              const nodeFrom = pos
-              const nodeTo = pos + node.nodeSize
-              const isSelected =
-                selection.from >= nodeFrom && selection.to <= nodeTo
-
-              if (isSelected) {
-                decorations.push(
-                  Decoration.node(nodeFrom, nodeTo, {
-                    class: "wiki-link ProseMirror-selectednode",
-                    "data-wiki-active": "true",
-                  })
-                )
+              if (node) {
+                const title = node.attrs.title
+                if (title) {
+                  window.dispatchEvent(
+                    new CustomEvent("openvlt:wiki-link-click", {
+                      detail: { title },
+                    })
+                  )
+                }
+                return true
               }
-            })
+              return false
+            }
 
-            if (decorations.length === 0) return DecorationSet.empty
-            return DecorationSet.create(tr.doc, decorations)
+            // Regular click: explode the atom into editable [[text]]
+            const $pos = view.state.doc.resolve(pos)
+            let nodePos: number | null = null
+            let wikiNode: any = null
+
+            if ($pos.nodeAfter?.type.name === "wikiLink") {
+              nodePos = pos
+              wikiNode = $pos.nodeAfter
+            } else if ($pos.nodeBefore?.type.name === "wikiLink") {
+              nodePos = pos - ($pos.nodeBefore?.nodeSize ?? 0)
+              wikiNode = $pos.nodeBefore
+            }
+
+            if (wikiNode && nodePos !== null) {
+              const title = wikiNode.attrs.title || ""
+              const rawText = `[[${title}]]`
+              const { tr } = view.state
+              tr.replaceWith(
+                nodePos,
+                nodePos + wikiNode.nodeSize,
+                view.state.schema.text(rawText)
+              )
+              // Place cursor at the end of the title text (before ]])
+              const cursorPos = nodePos + 2 + title.length
+              tr.setSelection(
+                TextSelection.create(
+                  tr.doc,
+                  Math.min(cursorPos, tr.doc.content.size)
+                )
+              )
+              view.dispatch(tr)
+              explodedRange = { from: nodePos, title }
+              return true
+            }
+
+            return false
+          },
+        },
+        appendTransaction(transactions, _oldState, newState) {
+          // When the cursor moves away from an exploded wiki-link, try to recompose it
+          if (!explodedRange) return null
+
+          const { selection } = newState
+          const cursorPos = selection.from
+
+          // Find if there's a [[...]] pattern near the exploded range
+          const $pos = newState.doc.resolve(
+            Math.min(explodedRange.from, newState.doc.content.size)
+          )
+          const parentNode = $pos.parent
+          const parentText = parentNode.textContent
+          const offsetInParent = explodedRange.from - $pos.start()
+
+          // Look for [[ starting at the exploded position
+          const textFromExploded = parentText.slice(offsetInParent)
+          const closeIdx = textFromExploded.indexOf("]]")
+          const openIdx = textFromExploded.indexOf("[[")
+
+          if (openIdx !== 0) {
+            // The [[ was deleted, clear the tracking
+            explodedRange = null
+            return null
+          }
+
+          if (closeIdx === -1) {
+            // No ]] yet — the user may still be editing. Check if cursor is still in range.
+            const rangeEnd = explodedRange.from + textFromExploded.length
+            if (cursorPos >= explodedRange.from && cursorPos <= rangeEnd) {
+              return null // Still editing
+            }
+            // Cursor left without closing — just abandon
+            explodedRange = null
+            return null
+          }
+
+          // We have [[...]] — check if cursor is outside it
+          const fullMatch = textFromExploded.slice(0, closeIdx + 2)
+          const absoluteStart = $pos.start() + offsetInParent
+          const absoluteEnd = absoluteStart + fullMatch.length
+
+          if (cursorPos >= absoluteStart && cursorPos <= absoluteEnd) {
+            return null // Cursor is still inside
+          }
+
+          // Cursor left — recompose into a wikiLink node
+          const innerTitle = fullMatch.slice(2, -2)
+          if (!innerTitle) {
+            explodedRange = null
+            return null
+          }
+
+          const { tr } = newState
+          const wikiLinkNode = newState.schema.nodes.wikiLink.create({
+            title: innerTitle,
+          })
+          tr.replaceWith(absoluteStart, absoluteEnd, wikiLinkNode)
+          explodedRange = null
+          return tr
+        },
+      }),
+      // Highlight raw [[...]] and [[... (unclosed) text in primary color
+      new Plugin({
+        key: new PluginKey("wikiLinkRawHighlight"),
+        state: {
+          init(_, state) {
+            return buildRawWikiDecorations(state.doc)
+          },
+          apply(tr, oldDecos) {
+            if (!tr.docChanged) return oldDecos
+            return buildRawWikiDecorations(tr.doc)
           },
         },
         props: {
           decorations(state) {
             return this.getState(state) ?? DecorationSet.empty
-          },
-          handleClick(view, pos, event) {
-            // Only navigate on Cmd/Ctrl+click (like regular links)
-            if (!(event.metaKey || event.ctrlKey)) return false
-
-            const $pos = view.state.doc.resolve(pos)
-            const node =
-              $pos.nodeAfter?.type.name === "wikiLink"
-                ? $pos.nodeAfter
-                : $pos.nodeBefore?.type.name === "wikiLink"
-                  ? $pos.nodeBefore
-                  : null
-
-            if (node) {
-              const title = node.attrs.title
-              if (title) {
-                window.dispatchEvent(
-                  new CustomEvent("openvlt:wiki-link-click", {
-                    detail: { title },
-                  })
-                )
-              }
-              return true
-            }
-            return false
           },
         },
       }),

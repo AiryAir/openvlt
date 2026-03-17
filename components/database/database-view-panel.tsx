@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/popover"
 import { TableView } from "@/components/database/table-view"
 import { KanbanView } from "@/components/database/kanban-view"
+import { CalendarView } from "@/components/database/calendar-view"
 import { FilterBar } from "@/components/database/filter-bar"
 import type {
   DatabaseView,
@@ -184,11 +185,13 @@ export function DatabaseViewPanel({ viewId }: DatabaseViewPanelProps) {
             onRefresh={fetchData}
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-muted-foreground">
-              Calendar view coming soon
-            </p>
-          </div>
+          <CalendarView
+            rows={rows}
+            definitions={definitions}
+            config={view.config}
+            onConfigUpdate={handleUpdateConfig}
+            onRefresh={fetchData}
+          />
         )}
       </div>
     </div>

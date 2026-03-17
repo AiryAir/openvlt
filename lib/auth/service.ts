@@ -124,9 +124,23 @@ export function validateSession(
   if (!row) return null
 
   // Check expiration
-  if (new Date(row.expires_at) < new Date()) {
+  const expiresAt = new Date(row.expires_at)
+  const now = new Date()
+  if (expiresAt < now) {
     db.prepare("DELETE FROM sessions WHERE id = ?").run(row.id)
     return null
+  }
+
+  // Sliding window: if past half the max age, extend the session
+  const createdAt = new Date(row.created_at)
+  const halfLife = SESSION_MAX_AGE_MS / 2
+  if (now.getTime() - createdAt.getTime() > halfLife) {
+    const newExpiry = new Date(now.getTime() + SESSION_MAX_AGE_MS)
+    db.prepare("UPDATE sessions SET expires_at = ? WHERE id = ?").run(
+      newExpiry.toISOString(),
+      row.id
+    )
+    row.expires_at = newExpiry.toISOString()
   }
 
   return {

@@ -28,6 +28,11 @@ import { ToggleBlock } from "@/lib/editor/toggle-block"
 import { WikiLink } from "@/lib/editor/wiki-link"
 import { TaskListInputRule } from "@/lib/editor/task-list-input-rule"
 import { EmbedBlock } from "@/lib/editor/embed-block"
+import { MathBlock } from "@/lib/editor/math-block"
+import { InlineMath } from "@/lib/editor/inline-math"
+import { MermaidBlock } from "@/lib/editor/mermaid-block"
+import { InlineDatabase } from "@/lib/editor/inline-database"
+import { SyncedBlock } from "@/lib/editor/synced-block"
 import { useTabStore } from "@/lib/stores/tab-store"
 import { useShortcutAction } from "@/lib/stores/shortcuts-store"
 
@@ -44,6 +49,7 @@ import { DocxViewerModal } from "@/components/editor/embeds/docx-viewer-modal"
 import { ConflictDialog } from "@/components/conflict-dialog"
 import { addBookmark } from "@/components/bookmarks-panel"
 import { BacklinksPanel } from "@/components/backlinks-panel"
+import { NoteProperties } from "@/components/note-properties"
 import { OutlinePanel } from "@/components/outline-panel"
 import { WordCountBar } from "@/components/word-count-bar"
 import { TimeMachinePanel } from "@/components/history/time-machine-panel"
@@ -229,6 +235,11 @@ export function NoteEditor({
       ToggleBlock,
       WikiLink,
       EmbedBlock,
+      MathBlock,
+      InlineMath,
+      MermaidBlock,
+      InlineDatabase,
+      SyncedBlock,
     ],
     content: initialContent,
     contentType: "markdown",
@@ -507,6 +518,7 @@ export function NoteEditor({
               onChange={handleCoverChange}
               className="hidden"
             />
+            <NoteProperties noteId={noteId} />
             <EditorContextMenu editor={editor} noteId={noteId}>
               <EditorContent editor={editor} />
             </EditorContextMenu>

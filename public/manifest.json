@@ -2,7 +2,7 @@
   "name": "openvlt",
   "short_name": "openvlt",
   "description": "Self-hosted, open-source notes app. Markdown files on disk.",
-  "start_url": "/",
+  "start_url": "/notes",
   "display": "standalone",
   "theme_color": "#1c1917",
   "background_color": "#0c0a09",
