@@ -1,3 +1,4 @@
+import { promptDialog } from "@/lib/dialogs"
 import { Extension } from "@tiptap/core"
 import { Suggestion } from "@tiptap/suggestion"
 import type { Editor, Range } from "@tiptap/core"
@@ -165,9 +166,9 @@ const COMMANDS: SlashCommandItem[] = [
     title: "Embed",
     description: "YouTube, tweet, or webpage",
     icon: "🔗",
-    command: (editor, range) => {
+    command: async (editor, range) => {
       editor.chain().focus().deleteRange(range).run()
-      const url = window.prompt("Paste a URL to embed (YouTube, Twitter/X, etc.)")
+      const url = await promptDialog({ title: "Embed", description: "Paste a URL to embed (YouTube, Twitter/X, etc.):", placeholder: "https://" })
       if (!url) return
       const embed = parseEmbedUrl(url)
       if (embed) {

@@ -18,6 +18,7 @@ import {
   ChevronUpIcon,
   PanelTopCloseIcon,
 } from "lucide-react"
+import { GeoShapeGeoStyle } from "@tldraw/tlschema"
 
 interface CanvasToolbarProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,7 +78,7 @@ export function CanvasToolbar({
       setActiveGeo(geo)
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { GeoShapeGeoStyle } = require("@tldraw/tlschema")
+        // GeoShapeGeoStyle imported at top level
         editor.setStyleForNextShapes(GeoShapeGeoStyle, geo)
       } catch {
         // Fallback if import fails

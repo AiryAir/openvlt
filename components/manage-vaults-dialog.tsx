@@ -24,6 +24,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CreateVaultDialog } from "@/components/create-vault-dialog"
+import { confirmDialog } from "@/lib/dialogs"
 import type { Vault } from "@/types"
 
 interface VaultStats {
@@ -119,7 +120,13 @@ export function ManageVaultsDialog({
       ? `Delete "${vault.name}"? This is your active vault. Your files on disk will not be deleted.`
       : `Delete "${vault.name}"? Your files on disk will not be deleted.`
 
-    if (!confirm(message)) return
+    const confirmed = await confirmDialog({
+      title: "Delete vault",
+      description: message,
+      confirmLabel: "Delete",
+      destructive: true,
+    })
+    if (!confirmed) return
 
     setDeletingId(vault.id)
     try {

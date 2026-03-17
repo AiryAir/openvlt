@@ -3,6 +3,8 @@
 import * as React from "react"
 import { useTheme } from "next-themes"
 import dynamic from "next/dynamic"
+import { createShapeId } from "tldraw"
+import { DefaultColorStyle, DefaultSizeStyle } from "@tldraw/tlschema"
 import "tldraw/tldraw.css"
 
 import {
@@ -148,7 +150,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
       // Apply saved stroke defaults to tldraw style state
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { DefaultColorStyle, DefaultSizeStyle } = require("@tldraw/tlschema")
+        // DefaultColorStyle, DefaultSizeStyle imported at top level
         const saved = localStorage.getItem("openvlt:stroke-defaults")
         if (saved) {
           const { color, size } = JSON.parse(saved)
@@ -303,7 +305,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
                 const hitShape = editor.getShapeAtPoint(point)
                 if (!hitShape) {
                   // eslint-disable-next-line @typescript-eslint/no-require-imports
-                  const { createShapeId } = require("tldraw")
+                  // createShapeId imported at top level
                   const id = createShapeId()
                   const defaults = getTextNoteDefaults()
                   editor.createShape({
@@ -393,7 +395,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
           if (hitShape) return
 
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { createShapeId } = require("tldraw")
+          // createShapeId imported at top level
           const id = createShapeId()
           const defaults = getTextNoteDefaults()
           editor.createShape({
@@ -629,29 +631,12 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
     setPageSize(size)
     saveCanvasSettings({ pageSize: size, background, pageCount, ruleStyle, customSpacing, pressureSensitivity })
 
-    // Update camera bounds
+    // Update camera — no constraints, free scrolling (same as initial setup)
     if (editorRef.current) {
-      const pageDef = PAGE_SIZES.find(p => p.id === size)
-      if (pageDef && pageDef.width > 0) {
-        editorRef.current.setCameraOptions({
-          constraints: {
-            bounds: { x: 0, y: 0, w: pageDef.width, h: pageDef.height },
-            behavior: { x: "inside", y: "inside" },
-            padding: { x: 0, y: 0 },
-            origin: { x: 0, y: 0 },
-          },
-        })
-      } else {
-        // Infinite: only restrict top-left
-        editorRef.current.setCameraOptions({
-          constraints: {
-            bounds: { x: 0, y: 0, w: 10000, h: 10000 },
-            behavior: { x: "inside", y: "inside" },
-            padding: { x: 0, y: 0 },
-            origin: { x: 0, y: 0 },
-          },
-        })
-      }
+      editorRef.current.setCameraOptions({
+        constraints: undefined,
+        zoomSteps: [0.1, 0.25, 0.5, 1, 2, 4, 8],
+      })
     }
   }, [background])
 
@@ -773,7 +758,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
     if (!editorRef.current) return
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { DefaultColorStyle } = require("@tldraw/tlschema")
+      // DefaultColorStyle imported at top level
       editorRef.current.setStyleForNextShapes(DefaultColorStyle, color)
     } catch {}
   }, [])
@@ -783,7 +768,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
     if (!editorRef.current) return
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { DefaultSizeStyle } = require("@tldraw/tlschema")
+      // DefaultSizeStyle imported at top level
       editorRef.current.setStyleForNextShapes(DefaultSizeStyle, size)
     } catch {}
   }, [])

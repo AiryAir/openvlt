@@ -4,6 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Keep sidebar above main content in split-screen / horizontal overflow */
+[data-slot="sidebar-container"] {
+  z-index: 30;
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.25);
@@ -761,6 +766,42 @@
 
 .tiptap .selectedCell {
   background: var(--accent);
+}
+
+/* ── Table select grip ── */
+.table-select-grip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.6;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.table-select-grip:hover {
+  opacity: 1;
+  background: var(--accent);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Node-selected table */
+.tiptap .ProseMirror-selectednode table {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* ── Table add row/column bars ── */

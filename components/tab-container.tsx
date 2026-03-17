@@ -8,6 +8,7 @@ import { GraphView } from "@/components/graph-view"
 import { SettingsPanel } from "@/components/settings-panel"
 import { TrashPanel } from "@/components/trash-panel"
 import { NotesListPanel } from "@/components/notes-list-panel"
+import { DatabaseViewPanel } from "@/components/database/database-view-panel"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { FileTextIcon, XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -53,13 +54,21 @@ export function TabContainer() {
   }, [])
 
   // Sync URL when active tab changes
+  const specialTabRoutes: Record<string, string> = {
+    __all__: "/notes",
+    __trash__: "/notes?view=trash",
+    __settings__: "/settings",
+    __graph__: "/notes?view=graph",
+  }
+
   React.useEffect(() => {
-    if (activeTabId && !activeTabId.startsWith("__")) {
-      const current = window.location.pathname
-      const target = `/notes/${activeTabId}`
-      if (current !== target) {
-        window.history.replaceState(null, "", target)
-      }
+    if (!activeTabId) return
+    const current = window.location.pathname + window.location.search
+    const target = activeTabId.startsWith("__dbview_")
+      ? `/notes?view=database&id=${activeTabId.slice(9, -2)}`
+      : specialTabRoutes[activeTabId] ?? `/notes/${activeTabId}`
+    if (current !== target) {
+      window.history.replaceState(null, "", target)
     }
   }, [activeTabId])
 
@@ -163,7 +172,9 @@ export function TabContainer() {
   return (
     <div className="flex h-svh min-w-0 flex-col overflow-hidden">
       <TabBar />
-      <div className="relative flex flex-1 overflow-hidden">
+      {/* min-w-0: required so split panes shrink to fit available width
+           instead of overflowing. Do not remove. */}
+      <div className="relative flex min-w-0 flex-1 overflow-hidden">
         {/* Drop zone overlays — only visible during tab drag */}
         {isDraggingTab && (
           <>
@@ -226,14 +237,7 @@ export function TabContainer() {
                 key={tab.noteId}
                 className={tab.noteId === activeTabId ? "h-full" : "hidden"}
               >
-                <NotesListPanel filter="all" />
-              </div>
-            ) : tab.noteId === "__favorites__" ? (
-              <div
-                key={tab.noteId}
-                className={tab.noteId === activeTabId ? "h-full" : "hidden"}
-              >
-                <NotesListPanel filter="favorites" />
+                <NotesListPanel />
               </div>
             ) : tab.noteId === "__trash__" ? (
               <div
@@ -241,6 +245,13 @@ export function TabContainer() {
                 className={tab.noteId === activeTabId ? "h-full" : "hidden"}
               >
                 <TrashPanel />
+              </div>
+            ) : tab.noteId.startsWith("__dbview_") ? (
+              <div
+                key={tab.noteId}
+                className={tab.noteId === activeTabId ? "h-full" : "hidden"}
+              >
+                <DatabaseViewPanel viewId={tab.noteId.slice(9, -2)} />
               </div>
             ) : (
               <TabPanel
@@ -273,11 +284,11 @@ export function TabContainer() {
               ) : splitNoteId === "__settings__" ? (
                 <SettingsPanel />
               ) : splitNoteId === "__all__" ? (
-                <NotesListPanel filter="all" />
-              ) : splitNoteId === "__favorites__" ? (
-                <NotesListPanel filter="favorites" />
+                <NotesListPanel />
               ) : splitNoteId === "__trash__" ? (
                 <TrashPanel />
+              ) : splitNoteId.startsWith("__dbview_") ? (
+                <DatabaseViewPanel viewId={splitNoteId.slice(9, -2)} />
               ) : (
                 <TabPanel noteId={splitNoteId} active isSplit />
               )}

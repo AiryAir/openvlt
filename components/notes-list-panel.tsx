@@ -38,15 +38,20 @@ function getFolderPath(filePath: string): string | null {
 }
 
 interface NotesListPanelProps {
-  filter: "all" | "favorites"
+  initialFilter?: "all" | "favorites"
 }
 
-export function NotesListPanel({ filter }: NotesListPanelProps) {
+export function NotesListPanel({
+  initialFilter = "all",
+}: NotesListPanelProps) {
   const { openTab } = useTabStore()
   const [notes, setNotes] = React.useState<NoteMetadata[]>([])
   const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState("")
   const [sort, setSort] = React.useState<SortKey>("updated")
+  const [showFavoritesOnly, setShowFavoritesOnly] = React.useState(
+    initialFilter === "favorites"
+  )
   const [view, setView] = React.useState<ViewMode>(() => {
     if (typeof window !== "undefined") {
       return (localStorage.getItem("openvlt:notes-view") as ViewMode) || "list"
@@ -59,9 +64,21 @@ export function NotesListPanel({ filter }: NotesListPanelProps) {
     localStorage.setItem("openvlt:notes-view", mode)
   }
 
+  // Listen for external requests to toggle favorites filter (from sidebar)
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.favorites !== undefined) {
+        setShowFavoritesOnly(detail.favorites)
+      }
+    }
+    window.addEventListener("openvlt:notes-filter", handler)
+    return () => window.removeEventListener("openvlt:notes-filter", handler)
+  }, [])
+
   const fetchNotes = React.useCallback(async () => {
     try {
-      const res = await fetch(`/api/notes?filter=${filter}`)
+      const res = await fetch("/api/notes?filter=all")
       if (res.ok) {
         setNotes(await res.json())
       }
@@ -70,7 +87,7 @@ export function NotesListPanel({ filter }: NotesListPanelProps) {
     } finally {
       setLoading(false)
     }
-  }, [filter])
+  }, [])
 
   React.useEffect(() => {
     fetchNotes()
@@ -90,6 +107,9 @@ export function NotesListPanel({ filter }: NotesListPanelProps) {
 
   const filtered = React.useMemo(() => {
     let result = notes
+    if (showFavoritesOnly) {
+      result = result.filter((n) => n.isFavorite)
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(
@@ -105,25 +125,23 @@ export function NotesListPanel({ filter }: NotesListPanelProps) {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     })
-  }, [notes, search, sort])
+  }, [notes, search, sort, showFavoritesOnly])
 
-  const isAll = filter === "all"
-  const Icon = isAll ? FileTextIcon : StarIcon
-  const label = isAll ? "All Notes" : "Favorites"
-  const emptyText = isAll ? "No notes yet" : "No favorite notes"
+  const label = showFavoritesOnly ? "Favorites" : "All Notes"
+  const emptyText = showFavoritesOnly ? "No favorite notes" : "No notes yet"
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <div className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-        <Icon className="size-4 text-muted-foreground" />
-        <span className="text-sm font-medium">{label}</span>
+        <FileTextIcon className="size-4 text-muted-foreground" />
+        <span className="text-sm font-medium">All Notes</span>
         <span className="text-sm text-muted-foreground">
           ({filtered.length})
         </span>
       </div>
 
-      {/* Search + Sort + View toggle */}
+      {/* Search + Sort + Favorites filter + View toggle */}
       <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2">
         <div className="relative flex-1">
           <SearchIcon className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -144,6 +162,19 @@ export function NotesListPanel({ filter }: NotesListPanelProps) {
           <option value="created">Created</option>
           <option value="title">Title</option>
         </select>
+        <button
+          onClick={() => setShowFavoritesOnly((prev) => !prev)}
+          className={`inline-flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
+            showFavoritesOnly
+              ? "border-amber-400/50 bg-amber-400/10 text-amber-400"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+          title={showFavoritesOnly ? "Show all notes" : "Show favorites only"}
+        >
+          <StarIcon
+            className={`size-3.5 ${showFavoritesOnly ? "fill-amber-400" : ""}`}
+          />
+        </button>
         <div className="flex rounded-md border">
           <button
             onClick={() => handleViewChange("list")}
@@ -170,7 +201,11 @@ export function NotesListPanel({ filter }: NotesListPanelProps) {
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-            <Icon className="size-8 text-muted-foreground" />
+            {showFavoritesOnly ? (
+              <StarIcon className="size-8 text-muted-foreground" />
+            ) : (
+              <FileTextIcon className="size-8 text-muted-foreground" />
+            )}
             <p className="text-sm text-muted-foreground">
               {search.trim() ? "No matching notes" : emptyText}
             </p>
@@ -183,46 +218,55 @@ export function NotesListPanel({ filter }: NotesListPanelProps) {
               return (
                 <button
                   key={note.id}
-                  className="flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
                   onClick={() => openTab(note.id, note.title)}
                 >
-                  <div className="flex items-center gap-2">
-                    {note.icon && (
-                      <span className="shrink-0 text-sm">{note.icon}</span>
-                    )}
-                    <p className="min-w-0 flex-1 truncate text-sm font-medium">
-                      {note.title}
-                    </p>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {note.isLocked && (
-                        <LockIcon className="size-3 text-muted-foreground" />
+                  {note.coverImage && (
+                    <img
+                      src={note.coverImage}
+                      alt=""
+                      className="h-10 w-16 shrink-0 rounded-md object-cover"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {note.icon && (
+                        <span className="shrink-0 text-sm">{note.icon}</span>
                       )}
-                      {note.isFavorite && isAll && (
-                        <StarIcon className="size-3 fill-amber-400 text-amber-400" />
+                      <p className="min-w-0 flex-1 truncate text-sm font-medium">
+                        {note.title}
+                      </p>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {note.isLocked && (
+                          <LockIcon className="size-3 text-muted-foreground" />
+                        )}
+                        {note.isFavorite && (
+                          <StarIcon className="size-3 fill-amber-400 text-amber-400" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {folder && (
+                        <>
+                          <span className="flex items-center gap-1 truncate">
+                            <FolderIcon className="size-3 shrink-0" />
+                            {folder}
+                          </span>
+                          <span>&middot;</span>
+                        </>
+                      )}
+                      <span className="shrink-0">
+                        {formatRelativeTime(note.updatedAt)}
+                      </span>
+                      {note.tags.length > 0 && (
+                        <>
+                          <span>&middot;</span>
+                          <span className="truncate">
+                            {note.tags.slice(0, 3).join(", ")}
+                          </span>
+                        </>
                       )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {folder && (
-                      <>
-                        <span className="flex items-center gap-1 truncate">
-                          <FolderIcon className="size-3 shrink-0" />
-                          {folder}
-                        </span>
-                        <span>&middot;</span>
-                      </>
-                    )}
-                    <span className="shrink-0">
-                      {formatRelativeTime(note.updatedAt)}
-                    </span>
-                    {note.tags.length > 0 && (
-                      <>
-                        <span>&middot;</span>
-                        <span className="truncate">
-                          {note.tags.slice(0, 3).join(", ")}
-                        </span>
-                      </>
-                    )}
                   </div>
                 </button>
               )
@@ -263,7 +307,7 @@ export function NotesListPanel({ filter }: NotesListPanelProps) {
                           <LockIcon className="size-3 text-muted-foreground" />
                         </span>
                       )}
-                      {note.isFavorite && isAll && (
+                      {note.isFavorite && (
                         <span className="rounded-md bg-background/80 p-1 backdrop-blur-sm">
                           <StarIcon className="size-3 fill-amber-400 text-amber-400" />
                         </span>

@@ -23,6 +23,8 @@ import {
   ServerIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import { confirmDialog, promptDialog } from "@/lib/dialogs"
 import type { User, BackupFrequency, BackupRun, SyncPairing } from "@/types"
 
 export function SettingsPanel() {
@@ -118,13 +120,13 @@ export function SettingsPanel() {
   }
 
   async function handleChangePassword() {
-    const current = prompt("Current password:")
+    const current = await promptDialog({ title: "Change password", description: "Current password:", type: "password" })
     if (!current) return
-    const newPass = prompt("New password:")
+    const newPass = await promptDialog({ title: "Change password", description: "New password:", type: "password" })
     if (!newPass) return
-    const confirm = prompt("Confirm new password:")
-    if (newPass !== confirm) {
-      alert("Passwords don't match")
+    const confirmPass = await promptDialog({ title: "Change password", description: "Confirm new password:", type: "password" })
+    if (newPass !== confirmPass) {
+      toast.error("Passwords don't match")
       return
     }
     const res = await fetch("/api/auth/change-password", {
@@ -650,16 +652,17 @@ export function SettingsPanel() {
                   variant="destructive"
                   size="sm"
                   onClick={async () => {
-                    if (
-                      !confirm(
-                        "Permanently delete ALL trashed notes? This cannot be undone."
-                      )
-                    )
-                      return
+                    const ok = await confirmDialog({
+                      title: "Purge trash",
+                      description: "Permanently delete ALL trashed notes? This cannot be undone.",
+                      confirmLabel: "Delete all",
+                      destructive: true,
+                    })
+                    if (!ok) return
                     await fetch("/api/notes?action=purgeTrash", {
                       method: "DELETE",
                     })
-                    alert("Trash purged")
+                    toast.success("Trash purged")
                   }}
                 >
                   <TrashIcon className="mr-2 size-3.5" />

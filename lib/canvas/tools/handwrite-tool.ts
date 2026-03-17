@@ -1,4 +1,5 @@
 import { StateNode, createShapeId } from "tldraw"
+import { DefaultColorStyle, DefaultSizeStyle } from "@tldraw/tlschema"
 import "../shapes/handwrite-shape"
 
 export class HandwriteTool extends StateNode {
@@ -103,7 +104,7 @@ export class HandwriteTool extends StateNode {
     } catch {}
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { DefaultColorStyle, DefaultSizeStyle } = require("@tldraw/tlschema")
+      // DefaultColorStyle, DefaultSizeStyle imported at top level
       const c = this.editor.getStyleForNextShape(DefaultColorStyle)
       const s = this.editor.getStyleForNextShape(DefaultSizeStyle)
       if (c) colorName = c as string
@@ -226,7 +227,7 @@ export class HandwriteTool extends StateNode {
     } catch {}
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { DefaultColorStyle, DefaultSizeStyle } = require("@tldraw/tlschema")
+      // DefaultColorStyle, DefaultSizeStyle imported at top level
       const c = this.editor.getStyleForNextShape(DefaultColorStyle)
       const s = this.editor.getStyleForNextShape(DefaultSizeStyle)
       if (c) colorName = c as string

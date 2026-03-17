@@ -28,7 +28,10 @@ import {
   LinkIcon,
   ImageIcon,
   PaperclipIcon,
+  ClipboardCopyIcon,
 } from "lucide-react"
+import { toast } from "sonner"
+import { promptDialog } from "@/lib/dialogs"
 import { pickAndUpload } from "@/lib/editor/upload"
 
 function ToolbarSeparator() {
@@ -51,8 +54,17 @@ export function EditorToolbar({ editor, noteId }: EditorToolbarProps) {
         ? "Heading 3"
         : "Normal"
 
-  const handleInsertLink = () => {
-    const url = window.prompt("Enter URL")
+  const handleCopyMarkdown = () => {
+    const md = (editor as any).getMarkdown?.()
+    if (md) {
+      navigator.clipboard.writeText(md).then(() => {
+        toast.success("Markdown copied to clipboard")
+      })
+    }
+  }
+
+  const handleInsertLink = async () => {
+    const url = await promptDialog({ title: "Insert link", description: "Enter URL:", placeholder: "https://" })
     if (url) {
       editor.chain().focus().setLink({ href: url }).run()
     }
@@ -167,6 +179,12 @@ export function EditorToolbar({ editor, noteId }: EditorToolbarProps) {
       </Toggle>
       <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => pickAndUpload(editor, noteId)} onMouseDown={(e) => e.preventDefault()} title="Attach File">
         <PaperclipIcon className="size-4" />
+      </Toggle>
+
+      <ToolbarSeparator />
+
+      <Toggle size="sm" variant="outline" pressed={false} onPressedChange={handleCopyMarkdown} onMouseDown={(e) => e.preventDefault()} title="Copy as Markdown">
+        <ClipboardCopyIcon className="size-4" />
       </Toggle>
     </div>
   )

@@ -13,23 +13,44 @@ interface HeadingItem {
 
 interface OutlinePanelProps {
   editor: Editor | null
+  pane?: "main" | "split"
 }
 
-export function OutlinePanel({ editor }: OutlinePanelProps) {
+export function OutlinePanel({ editor, pane = "main" }: OutlinePanelProps) {
+  const storageKey = `openvlt:outline-open:${pane}`
   const [headings, setHeadings] = React.useState<HeadingItem[]>([])
-  const [open, setOpen] = React.useState(() => {
-    if (typeof window === "undefined") return true
-    return localStorage.getItem("openvlt:outline-open") !== "false"
-  })
+  const [open, setOpen] = React.useState(false)
+  const [mobileOpen, setMobileOpen] = React.useState(false)
+
+  // Sync from localStorage after mount to avoid SSR/client mismatch
+  React.useEffect(() => {
+    setOpen(localStorage.getItem(storageKey) !== "false")
+  }, [storageKey])
   const [activeId, setActiveId] = React.useState<string | null>(null)
 
   function toggleOpen() {
     setOpen((prev) => {
       const next = !prev
-      localStorage.setItem("openvlt:outline-open", String(next))
+      localStorage.setItem(storageKey, String(next))
       return next
     })
   }
+
+  // Listen for outline toggle event scoped to this pane
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.pane && detail.pane !== pane) return
+      // On mobile toggle the overlay, on desktop toggle the inline panel
+      if (window.innerWidth < 768) {
+        setMobileOpen((prev) => !prev)
+      } else {
+        toggleOpen()
+      }
+    }
+    window.addEventListener("openvlt:toggle-outline", handler)
+    return () => window.removeEventListener("openvlt:toggle-outline", handler)
+  }, [pane, storageKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Extract headings from the editor document
   const extractHeadings = React.useCallback(() => {
@@ -125,20 +146,8 @@ export function OutlinePanel({ editor }: OutlinePanelProps) {
 
   if (headings.length === 0) return null
 
-  if (!open) {
-    return (
-      <button
-        onClick={toggleOpen}
-        className="flex shrink-0 items-center justify-center border-l p-2 text-muted-foreground hover:text-foreground"
-        title="Show outline"
-      >
-        <ListTreeIcon className="size-4" />
-      </button>
-    )
-  }
-
-  return (
-    <div className="flex w-52 min-w-52 max-w-52 shrink-0 flex-col border-l">
+  const outlineContent = (
+    <>
       <div className="flex h-10 items-center justify-between border-b px-3">
         <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
           <ListTreeIcon className="size-3.5" />
@@ -146,7 +155,10 @@ export function OutlinePanel({ editor }: OutlinePanelProps) {
           <span className="tabular-nums">({headings.length})</span>
         </div>
         <button
-          onClick={toggleOpen}
+          onClick={() => {
+            toggleOpen()
+            setMobileOpen(false)
+          }}
           className="flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
           title="Hide outline"
         >
@@ -158,7 +170,10 @@ export function OutlinePanel({ editor }: OutlinePanelProps) {
         {headings.map((heading) => (
           <button
             key={heading.id}
-            onClick={() => scrollToHeading(heading.pos)}
+            onClick={() => {
+              scrollToHeading(heading.pos)
+              setMobileOpen(false)
+            }}
             title={heading.text}
             className={`block w-full truncate rounded-sm px-2.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground ${
               activeId === heading.id
@@ -171,6 +186,26 @@ export function OutlinePanel({ editor }: OutlinePanelProps) {
           </button>
         ))}
       </nav>
-    </div>
+    </>
+  )
+
+  if (!open && !mobileOpen) return null
+
+  return (
+    <>
+      {/* Desktop inline panel */}
+      {open && (
+        <div className="hidden w-52 min-w-52 max-w-52 shrink-0 flex-col border-l md:flex">
+          {outlineContent}
+        </div>
+      )}
+
+      {/* Mobile overlay panel */}
+      {mobileOpen && (
+        <div className="absolute inset-y-0 right-0 z-30 flex w-52 flex-col border-l bg-background md:hidden">
+          {outlineContent}
+        </div>
+      )}
+    </>
   )
 }

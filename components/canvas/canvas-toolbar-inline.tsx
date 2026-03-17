@@ -27,6 +27,7 @@ import {
   type BackgroundPattern,
   type RuleStyle,
 } from "@/lib/canvas/page-config"
+import { GeoShapeGeoStyle } from "@tldraw/tlschema"
 
 const shapeTools = [
   { id: "geo-rectangle", geo: "rectangle", icon: SquareIcon, label: "Rectangle" },
@@ -138,7 +139,7 @@ export function CanvasToolbarInline({ editor, pageSize: initialPageSize, backgro
       setActiveGeo(geo)
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { GeoShapeGeoStyle } = require("@tldraw/tlschema")
+        // GeoShapeGeoStyle imported at top level
         editor.setStyleForNextShapes(GeoShapeGeoStyle, geo)
       } catch {}
       editor.setCurrentTool("geo")

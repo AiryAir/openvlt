@@ -561,6 +561,52 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 11,
+    description: "Add database views: property definitions, note properties, view definitions",
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS property_definitions (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL CHECK(type IN ('text','number','date','select','multi_select','checkbox','url')),
+          options TEXT,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (vault_id) REFERENCES vaults(id) ON DELETE CASCADE,
+          UNIQUE(vault_id, name)
+        );
+
+        CREATE TABLE IF NOT EXISTS note_properties (
+          note_id TEXT NOT NULL,
+          property_id TEXT NOT NULL,
+          value_text TEXT,
+          value_number REAL,
+          PRIMARY KEY (note_id, property_id),
+          FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY (property_id) REFERENCES property_definitions(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_note_properties_prop ON note_properties(property_id, value_text);
+        CREATE INDEX IF NOT EXISTS idx_note_properties_num ON note_properties(property_id, value_number);
+
+        CREATE TABLE IF NOT EXISTS database_views (
+          id TEXT PRIMARY KEY,
+          vault_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          folder_id TEXT,
+          view_type TEXT NOT NULL DEFAULT 'table' CHECK(view_type IN ('table','kanban','calendar')),
+          config TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (vault_id) REFERENCES vaults(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+        );
+      `)
+    },
+  },
 ]
 
 export function runMigrations(db: Database.Database) {

@@ -1,3 +1,4 @@
+import { promptDialog } from "@/lib/dialogs"
 import type { Editor } from "@tiptap/core"
 import type { ComponentType } from "react"
 import {
@@ -21,6 +22,7 @@ import {
   ArrowDownIcon,
   ArrowLeftIcon,
   ArrowUpIcon,
+  BookmarkPlusIcon,
 } from "lucide-react"
 import { pickAndUpload } from "@/lib/editor/upload"
 
@@ -252,9 +254,9 @@ export function getLinkImageItems(
         id: "insert-link",
         label: editor.isActive("link") ? "Edit Link" : "Insert Link",
         icon: LinkIcon,
-        action: () => {
+        action: async () => {
           const existing = editor.getAttributes("link").href
-          const url = window.prompt("Enter URL", existing || "")
+          const url = await promptDialog({ title: editor.isActive("link") ? "Edit link" : "Insert link", description: "Enter URL:", defaultValue: existing || "", placeholder: "https://" })
           if (url) {
             editor.chain().focus().setLink({ href: url }).run()
           } else if (url === "") {
@@ -274,6 +276,46 @@ export function getLinkImageItems(
         label: "Attach File",
         icon: PaperclipIcon,
         action: () => pickAndUpload(editor, noteId),
+      },
+    ],
+  }
+}
+
+// ─── Provider: Bookmark Heading ───
+// Shown only when cursor is inside a heading node
+
+export function getBookmarkItems(
+  editor: Editor,
+  noteId: string
+): ContextMenuGroup {
+  const { $from } = editor.state.selection
+  const headingNode = $from.node($from.depth)
+
+  if (headingNode?.type.name !== "heading") {
+    return { id: "bookmark", items: [] }
+  }
+
+  const headingText = headingNode.textContent
+
+  return {
+    id: "bookmark",
+    items: [
+      {
+        id: "bookmark-heading",
+        label: "Bookmark this heading",
+        icon: BookmarkPlusIcon,
+        action: () => {
+          window.dispatchEvent(
+            new CustomEvent("openvlt:add-bookmark", {
+              detail: {
+                type: "heading",
+                label: headingText,
+                targetId: noteId,
+                data: headingText,
+              },
+            })
+          )
+        },
       },
     ],
   }

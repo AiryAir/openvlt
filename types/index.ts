@@ -370,3 +370,83 @@ export interface SyncSelection {
   entityType: "folder" | "note"
   entityId: string
 }
+
+// ── Database Views ──
+
+export type PropertyType =
+  | "text"
+  | "number"
+  | "date"
+  | "select"
+  | "multi_select"
+  | "checkbox"
+  | "url"
+
+export interface PropertyDefinition {
+  id: string
+  vaultId: string
+  name: string
+  type: PropertyType
+  options: string[] | null
+  sortOrder: number
+  createdAt: string
+}
+
+export interface NoteProperty {
+  propertyId: string
+  name: string
+  type: PropertyType
+  value: string | number | boolean | string[] | null
+}
+
+export type DatabaseViewType = "table" | "kanban" | "calendar"
+
+export interface DatabaseViewFilter {
+  propertyId: string
+  operator:
+    | "eq"
+    | "neq"
+    | "gt"
+    | "lt"
+    | "gte"
+    | "lte"
+    | "contains"
+    | "not_contains"
+    | "is_empty"
+    | "is_not_empty"
+  value: string
+}
+
+export interface DatabaseViewSort {
+  propertyId: string
+  direction: "asc" | "desc"
+}
+
+export interface DatabaseViewConfig {
+  visibleProperties: string[]
+  sorts: DatabaseViewSort[]
+  filters: DatabaseViewFilter[]
+  groupByPropertyId?: string
+  calendarPropertyId?: string
+}
+
+export interface DatabaseView {
+  id: string
+  vaultId: string
+  userId: string
+  name: string
+  folderId: string | null
+  viewType: DatabaseViewType
+  config: DatabaseViewConfig
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DatabaseViewRow {
+  noteId: string
+  title: string
+  icon: string | null
+  createdAt: string
+  updatedAt: string
+  properties: Record<string, string | number | boolean | string[] | null>
+}

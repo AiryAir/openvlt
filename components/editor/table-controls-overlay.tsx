@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import type { Editor } from "@tiptap/core"
-import { Selection } from "@tiptap/pm/state"
+import { NodeSelection, Selection } from "@tiptap/pm/state"
 
 interface TableControlsOverlayProps {
   editor: Editor | null
@@ -162,6 +162,29 @@ export function TableControlsOverlay({
     }
   }
 
+  function handleSelectTable(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!editor || !hoveredTable) return
+    const view = editor.view
+    const pos = view.posAtDOM(hoveredTable, 0)
+    if (pos == null) return
+    // Walk back to find the table node position
+    const resolved = view.state.doc.resolve(pos)
+    for (let d = resolved.depth; d > 0; d--) {
+      if (resolved.node(d).type.name === "table") {
+        const tablePos = resolved.before(d)
+        view.dispatch(
+          view.state.tr.setSelection(
+            NodeSelection.create(view.state.doc, tablePos)
+          )
+        )
+        view.focus()
+        return
+      }
+    }
+  }
+
   function handleAddRow(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
@@ -194,6 +217,38 @@ export function TableControlsOverlay({
 
   return (
     <>
+      {/* Select Table Grip (top-left corner) */}
+      <button
+        data-table-bar="grip"
+        className="table-select-grip"
+        style={{
+          position: "absolute",
+          top: `${pos.colTop - 22}px`,
+          left: `${pos.rowLeft - 2}px`,
+        }}
+        onMouseEnter={cancelHide}
+        onMouseLeave={scheduleHide}
+        onMouseDown={handleSelectTable}
+        title="Select table"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="3" width="7" height="7" />
+          <rect x="14" y="3" width="7" height="7" />
+          <rect x="3" y="14" width="7" height="7" />
+          <rect x="14" y="14" width="7" height="7" />
+        </svg>
+      </button>
+
       {/* Add Row Bar */}
       <button
         data-table-bar="row"

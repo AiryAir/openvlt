@@ -19,6 +19,7 @@ import {
   getListItems,
   getInsertItems,
   getLinkImageItems,
+  getBookmarkItems,
 } from "@/lib/editor/context-menu-providers"
 import type { ContextMenuGroup } from "@/lib/editor/context-menu-providers"
 
@@ -43,6 +44,7 @@ export function EditorContextMenu({
     getListItems(editor),
     getInsertItems(editor),
     getLinkImageItems(editor, noteId),
+    getBookmarkItems(editor, noteId),
   ].filter((g) => g.items.length > 0)
 
   return (

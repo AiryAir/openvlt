@@ -24,6 +24,7 @@ interface TabStore extends TabState {
   reorderTab: (fromIndex: number, toIndex: number) => void
   openSplit: (noteId: string, title: string) => void
   closeSplit: () => void
+  closeMainAndPromoteSplit: () => void
 }
 
 const TabContext = React.createContext<TabStore | null>(null)
@@ -168,6 +169,19 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, splitNoteId: null, splitTitle: null }))
   }, [])
 
+  // Close the main (left) pane and promote the split (right) pane to main
+  const closeMainAndPromoteSplit = React.useCallback(() => {
+    setState((prev) => {
+      if (!prev.splitNoteId) return prev
+      return {
+        ...prev,
+        activeTabId: prev.splitNoteId,
+        splitNoteId: null,
+        splitTitle: null,
+      }
+    })
+  }, [])
+
   const store = React.useMemo<TabStore>(
     () => ({
       ...state,
@@ -178,8 +192,9 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
       reorderTab,
       openSplit,
       closeSplit,
+      closeMainAndPromoteSplit,
     }),
-    [state, openTab, closeTab, setActiveTab, updateTabTitle, reorderTab, openSplit, closeSplit]
+    [state, openTab, closeTab, setActiveTab, updateTabTitle, reorderTab, openSplit, closeSplit, closeMainAndPromoteSplit]
   )
 
   return <TabContext.Provider value={store}>{children}</TabContext.Provider>

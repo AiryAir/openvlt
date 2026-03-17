@@ -1,11 +1,14 @@
 import fs from "fs"
 import path from "path"
 import { v4 as uuid } from "uuid"
+import matter from "gray-matter"
 import { getDb } from "@/lib/db"
 import { getVaultPath, safeResolvePath } from "@/lib/vaults/service"
 import { recordStructureEvent } from "@/lib/versions/structure-events"
 import { appendSyncLog, hashContent } from "@/lib/sync/log"
 import { readOpenvltFile, writeOpenvltFile, extractTextFromCanvas, isOpenvltFile } from "@/lib/canvas/openvlt-file"
+import { parseFrontmatter, setFrontmatterField } from "@/lib/frontmatter"
+import { syncNoteProperties } from "@/lib/properties"
 import type { NoteMetadata, NoteType, NoteWithContent, VersionTrigger } from "@/types"
 
 const TRASH_AUTO_PURGE_DAYS = 30
@@ -182,20 +185,37 @@ export function getNote(
   const vaultRoot = getVaultPath(vaultId)
   const filePath = row.file_path as string
   const fullPath = safeResolvePath(vaultRoot, filePath)
-  let content = ""
-  try {
-    if (isOpenvltFile(filePath)) {
+  const metadata = toMetadata(row)
+
+  if (isOpenvltFile(filePath)) {
+    // Canvas notes: read from .openvlt ZIP
+    let content = ""
+    try {
       const result = readOpenvltFile(fullPath)
       content = result.content
-    } else {
-      content = fs.readFileSync(fullPath, "utf-8")
+    } catch {
+      // File may have been deleted externally
     }
+    return { metadata, content }
+  }
+
+  // Markdown notes: read and parse frontmatter
+  let rawContent = ""
+  try {
+    rawContent = fs.readFileSync(fullPath, "utf-8")
   } catch {
     // File may have been deleted externally
   }
 
+  const { data: frontmatter, content } = parseFrontmatter(rawContent)
+
+  // Frontmatter cover takes priority over SQLite (migration path)
+  if (frontmatter.cover) {
+    metadata.coverImage = frontmatter.cover as string
+  }
+
   return {
-    metadata: toMetadata(row),
+    metadata,
     content,
   }
 }
@@ -224,6 +244,22 @@ export function updateNoteContent(
   const currentVersion = row.version ?? 1
   const isCanvasOrExcalidraw = row.note_type === "canvas" || row.note_type === "excalidraw"
 
+  // Read existing frontmatter so we can preserve it when writing back.
+  // The editor only sees content (no frontmatter), so we re-prepend it.
+  let existingFrontmatter: Record<string, unknown> = {}
+  if (!isCanvasOrExcalidraw) {
+    try {
+      const raw = fs.readFileSync(fullPath, "utf-8")
+      existingFrontmatter = parseFrontmatter(raw).data
+    } catch {}
+  }
+
+  // Helper: wrap editor content with existing frontmatter for disk writes
+  function withFrontmatter(editorContent: string): string {
+    if (Object.keys(existingFrontmatter).length === 0) return editorContent
+    return matter.stringify(editorContent, existingFrontmatter)
+  }
+
   // If baseVersion provided and doesn't match, attempt merge (skip for canvas/excalidraw — not text-mergeable)
   if (!isCanvasOrExcalidraw && baseVersion !== undefined && baseVersion < currentVersion) {
     const { threeWayMerge } =
@@ -231,10 +267,11 @@ export function updateNoteContent(
     const { saveVersionGrouped } =
       require("@/lib/versions/grouping") as typeof import("@/lib/versions/grouping")
 
-    // Read current server content
+    // Read current server content (without frontmatter, for merge comparison)
     let serverContent = ""
     try {
-      serverContent = fs.readFileSync(fullPath, "utf-8")
+      const raw = fs.readFileSync(fullPath, "utf-8")
+      serverContent = parseFrontmatter(raw).content
     } catch {}
 
     // Find ancestor: the version snapshot at baseVersion
@@ -252,8 +289,9 @@ export function updateNoteContent(
 
     if (mergeResult.success) {
       // Auto-merge succeeded
+      const rawForDisk = withFrontmatter(mergeResult.content)
       saveVersionGrouped(id, serverContent, row.title, userId, "merge")
-      fs.writeFileSync(fullPath, mergeResult.content, "utf-8")
+      fs.writeFileSync(fullPath, rawForDisk, "utf-8")
       const newVersion = currentVersion + 1
       const now = new Date().toISOString()
       db.prepare(
@@ -266,7 +304,10 @@ export function updateNoteContent(
 
       appendSyncLog(vaultId, "note", id, "update", {
         title: row.title,
-      }, hashContent(mergeResult.content))
+      }, hashContent(rawForDisk))
+
+      // Sync frontmatter properties to index
+      try { syncNoteProperties(id, userId, vaultId) } catch {}
 
       return {
         version: newVersion,
@@ -293,7 +334,8 @@ export function updateNoteContent(
       const result = readOpenvltFile(fullPath)
       currentContent = result.content
     } else {
-      currentContent = fs.readFileSync(fullPath, "utf-8")
+      const raw = fs.readFileSync(fullPath, "utf-8")
+      currentContent = parseFrontmatter(raw).content
     }
   } catch {}
 
@@ -306,6 +348,7 @@ export function updateNoteContent(
     require("@/lib/versions/grouping") as typeof import("@/lib/versions/grouping")
   saveVersionGrouped(id, currentContent, row.title, userId, trigger)
 
+  let rawForDisk: string
   if (isOpenvlt) {
     // Write as .openvlt ZIP (synchronous via adm-zip)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -317,10 +360,11 @@ export function updateNoteContent(
     zip.addFile("settings.json", Buffer.from(JSON.stringify(data.settings ?? {})))
     zip.addFile("content.md", Buffer.from(extractTextFromCanvas(content)))
     zip.writeZip(fullPath)
+    rawForDisk = content
   } else {
-    fs.writeFileSync(fullPath, content, "utf-8")
+    rawForDisk = withFrontmatter(content)
+    fs.writeFileSync(fullPath, rawForDisk, "utf-8")
   }
-
   const newVersion = currentVersion + 1
   const now = new Date().toISOString()
   db.prepare("UPDATE notes SET version = ?, updated_at = ? WHERE id = ?").run(
@@ -329,7 +373,7 @@ export function updateNoteContent(
     id
   )
 
-  // Update FTS index — use extracted text for canvas notes
+  // Update FTS index — use extracted text for canvas notes, content only (no frontmatter) for markdown
   const ftsContent = isOpenvlt ? (extractTextFromCanvas(content) || row.title) : content
   db.prepare(
     `UPDATE notes_fts SET title = ?, content = ?
@@ -338,7 +382,10 @@ export function updateNoteContent(
 
   appendSyncLog(vaultId, "note", id, "update", {
     title: row.title,
-  }, hashContent(content))
+  }, hashContent(rawForDisk))
+
+  // Sync frontmatter properties to index
+  try { syncNoteProperties(id, userId, vaultId) } catch {}
 
   return { version: newVersion, content, status: "saved" }
 }
@@ -430,6 +477,26 @@ export function updateNoteCover(
   vaultId: string
 ): void {
   const db = getDb()
+  const row = db
+    .prepare(
+      "SELECT file_path FROM notes WHERE id = ? AND user_id = ? AND vault_id = ?"
+    )
+    .get(id, userId, vaultId) as { file_path: string } | undefined
+
+  if (!row) throw new Error("Note not found")
+
+  // Write cover to frontmatter in the .md file (portable across apps)
+  const vaultRoot = getVaultPath(vaultId)
+  const fullPath = safeResolvePath(vaultRoot, row.file_path)
+  try {
+    const raw = fs.readFileSync(fullPath, "utf-8")
+    const updated = setFrontmatterField(raw, "cover", coverImage)
+    fs.writeFileSync(fullPath, updated, "utf-8")
+  } catch {
+    // File may not exist; silently skip file update
+  }
+
+  // Also update SQLite for backward compatibility and list views
   db.prepare(
     "UPDATE notes SET cover_image = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ? AND vault_id = ?"
   ).run(coverImage, id, userId, vaultId)

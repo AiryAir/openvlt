@@ -25,7 +25,11 @@ export default async function AppLayout({
       <TabProvider>
         <SidebarProvider>
           <AppSidebar />
-          <SidebarInset>
+          {/* min-w-0 + overflow-hidden: prevents horizontal overflow when
+              sidebar is open + split view is active. Without this, the two
+              split panes size for full viewport width and overflow past the
+              sidebar. Do not remove these classes. */}
+          <SidebarInset className="min-w-0 overflow-hidden">
             <TabContainer />
             {/* children renders TabActivator (invisible) or the notes list page */}
             <div className="hidden">{children}</div>

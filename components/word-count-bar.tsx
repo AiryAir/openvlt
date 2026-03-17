@@ -45,10 +45,10 @@ export function WordCountBar({ editor }: WordCountBarProps) {
   if (!editor) return null
 
   return (
-    <div className="flex h-6 shrink-0 items-center gap-4 border-t bg-muted/30 px-4 text-sm text-muted-foreground">
-      <span>{stats.words.toLocaleString()} words</span>
-      <span>{stats.characters.toLocaleString()} characters</span>
-      <span>{stats.readingTime}</span>
+    <div className="flex h-6 shrink-0 items-center gap-3 overflow-hidden border-t bg-muted/30 px-3 text-sm whitespace-nowrap text-muted-foreground md:gap-4 md:px-4">
+      <span className="shrink-0">{stats.words.toLocaleString()} words</span>
+      <span className="shrink-0">{stats.characters.toLocaleString()} chars</span>
+      <span className="shrink-0">{stats.readingTime}</span>
     </div>
   )
 }

@@ -41,6 +41,7 @@ import { LightboxModal } from "@/components/editor/embeds/lightbox-modal"
 import { PdfViewerModal } from "@/components/editor/embeds/pdf-viewer-modal"
 import { DocxViewerModal } from "@/components/editor/embeds/docx-viewer-modal"
 import { ConflictDialog } from "@/components/conflict-dialog"
+import { addBookmark } from "@/components/bookmarks-panel"
 import { BacklinksPanel } from "@/components/backlinks-panel"
 import { OutlinePanel } from "@/components/outline-panel"
 import { WordCountBar } from "@/components/word-count-bar"
@@ -50,12 +51,16 @@ interface NoteEditorProps {
   noteId: string
   initialContent: string
   initialVersion?: number
+  coverImage?: string | null
+  pane?: "main" | "split"
 }
 
 export function NoteEditor({
   noteId,
   initialContent,
   initialVersion = 1,
+  coverImage: initialCoverImage = null,
+  pane = "main",
 }: NoteEditorProps) {
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -74,6 +79,71 @@ export function NoteEditor({
     null
   )
   const { openTab } = useTabStore()
+  const [coverImage, setCoverImage] = React.useState<string | null>(
+    initialCoverImage
+  )
+  const [coverHovered, setCoverHovered] = React.useState(false)
+  const coverInputRef = React.useRef<HTMLInputElement>(null)
+
+  // Listen for cover image updates from the note header (add cover button)
+  React.useEffect(() => {
+    const handler = () => {
+      fetch(`/api/notes/${noteId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.metadata?.coverImage !== undefined) {
+            setCoverImage(data.metadata.coverImage)
+          }
+        })
+        .catch(() => {})
+    }
+    window.addEventListener("openvlt:notes-refresh", handler)
+    return () => window.removeEventListener("openvlt:notes-refresh", handler)
+  }, [noteId])
+
+  async function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append("file", file)
+    const res = await fetch(`/api/notes/${noteId}/attachments`, {
+      method: "POST",
+      body: formData,
+    })
+    if (res.ok) {
+      const data = await res.json()
+      const url = `/api/attachments/${data.id}`
+      setCoverImage(url)
+      await fetch(`/api/notes/${noteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverImage: url }),
+      })
+      window.dispatchEvent(new Event("openvlt:notes-refresh"))
+    }
+  }
+
+  async function handleRemoveCover() {
+    setCoverImage(null)
+    await fetch(`/api/notes/${noteId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ coverImage: null }),
+    })
+    window.dispatchEvent(new Event("openvlt:notes-refresh"))
+  }
+
+  // Listen for bookmark requests from the editor context menu
+  React.useEffect(() => {
+    const handler = async (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.targetId === noteId) {
+        await addBookmark(detail.type, detail.label, detail.targetId, detail.data)
+      }
+    }
+    window.addEventListener("openvlt:add-bookmark", handler)
+    return () => window.removeEventListener("openvlt:add-bookmark", handler)
+  }, [noteId])
 
   // Listen for history toggle event from note header
   React.useEffect(() => {
@@ -153,7 +223,7 @@ export function NoteEditor({
           class: "text-primary underline underline-offset-2 cursor-pointer",
         },
       }),
-      Table.configure({ resizable: true }),
+      Table.configure({ resizable: true, allowTableNodeSelection: true }),
       TableRow,
       TableCell,
       TableHeader,
@@ -177,6 +247,16 @@ export function NoteEditor({
       attributes: {
         class:
           "prose prose-stone dark:prose-invert prose-sm sm:prose-base max-w-none focus:outline-none",
+      },
+      clipboardTextSerializer: (slice) => {
+        // Serialize copied content as markdown so paste round-trips correctly
+        const md = editorRef.current?.markdown
+        if (!md) return ""
+        const nodes: ReturnType<typeof md.serialize>[] = []
+        slice.content.forEach((node) => {
+          nodes.push(md.serialize({ type: "doc", content: [node.toJSON()] }))
+        })
+        return nodes.join("\n\n")
       },
       handleDrop: (view, event, slice, moved) => {
         const files = event.dataTransfer?.files
@@ -220,6 +300,27 @@ export function NoteEditor({
           uploadAndInsert(editorRef.current, noteId, files)
           return true
         }
+
+        // Always parse pasted text as markdown (like Obsidian)
+        const text = event.clipboardData?.getData("text/plain")
+        if (text && editorRef.current?.markdown) {
+          event.preventDefault()
+          // Normalize: collapse blank lines between table rows so the
+          // markdown parser sees them as a contiguous table block
+          let normalized = text
+          while (/(\|[^\n]*\|)\n\n(\|)/.test(normalized)) {
+            normalized = normalized.replace(
+              /(\|[^\n]*\|)\n\n(\|)/g,
+              "$1\n$2"
+            )
+          }
+          const json = editorRef.current.markdown.parse(normalized)
+          if (json?.content) {
+            editorRef.current.commands.insertContent(json.content)
+          }
+          return true
+        }
+
         return false
       },
     },
@@ -372,18 +473,58 @@ export function NoteEditor({
 
   return (
     <AttachmentModalProvider>
-      <div className="relative flex flex-1 flex-col overflow-hidden">
+      {/* min-w-0 on all flex containers here: prevents horizontal overflow
+           in split view. Without it, editor content pushes panes wider than
+           their allocated half. Do not remove min-w-0 from these elements. */}
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         {saving && (
           <div className="absolute top-2 right-4 z-30 text-sm text-muted-foreground">
             Saving...
           </div>
         )}
         <EditorToolbar editor={editor} noteId={noteId} />
-        <div className="relative flex flex-1 overflow-hidden">
+        <div className="relative flex min-w-0 flex-1 overflow-hidden">
           <div
             ref={scrollRef}
-            className="relative flex-1 overflow-x-hidden overflow-y-auto"
+            className="relative min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
           >
+            {/* Cover image: scrolls with content instead of being pinned */}
+            {coverImage && (
+              <div
+                className="group/cover relative h-40 overflow-hidden bg-muted"
+                onMouseEnter={() => setCoverHovered(true)}
+                onMouseLeave={() => setCoverHovered(false)}
+              >
+                <img
+                  src={coverImage}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+                {coverHovered && (
+                  <div className="absolute right-3 bottom-3 flex gap-1.5">
+                    <button
+                      onClick={() => coverInputRef.current?.click()}
+                      className="rounded-md bg-background/80 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur-sm hover:bg-background/90"
+                    >
+                      Change cover
+                    </button>
+                    <button
+                      onClick={handleRemoveCover}
+                      className="rounded-md bg-background/80 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur-sm hover:bg-background/90"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleCoverChange}
+              className="hidden"
+            />
             <EditorContextMenu editor={editor} noteId={noteId}>
               <EditorContent editor={editor} />
             </EditorContextMenu>
@@ -394,7 +535,7 @@ export function NoteEditor({
             <LinkHoverTooltip editor={editor} scrollContainerRef={scrollRef} />
             <BacklinksPanel noteId={noteId} />
           </div>
-          <OutlinePanel editor={editor} />
+          <OutlinePanel editor={editor} pane={pane} />
           {historyOpen && (
             <TimeMachinePanel
               noteId={noteId}

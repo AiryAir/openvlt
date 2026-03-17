@@ -18,6 +18,7 @@ import {
   CalendarIcon,
   BookmarkIcon,
   PenLineIcon,
+  TableIcon,
 } from "lucide-react"
 import {
   Sidebar,
@@ -55,12 +56,13 @@ import { BookmarksPanel } from "@/components/bookmarks-panel"
 import { CreateVaultDialog } from "@/components/create-vault-dialog"
 import { CreateFolderDialog } from "@/components/create-folder-dialog"
 import { SyncStatus } from "@/components/sync-status"
+import { SidebarResizer } from "@/components/sidebar-resizer"
 import type { TreeNode } from "@/types/note"
 
 const quickAccessItems = [
-  { title: "All Notes", icon: FileTextIcon, filter: "all" },
-  { title: "Favorites", icon: StarIcon, filter: "favorites" },
-  { title: "Trash", icon: TrashIcon, filter: "trash" },
+  { title: "All Notes", icon: FileTextIcon, tabId: "__all__" },
+  { title: "Favorites", icon: StarIcon, tabId: "__all__", favorites: true },
+  { title: "Trash", icon: TrashIcon, tabId: "__trash__" },
 ]
 
 async function openDailyNote(openTab: (id: string, title: string) => void) {
@@ -84,6 +86,9 @@ export function AppSidebar() {
   const [hasVault, setHasVault] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [folderDialogOpen, setFolderDialogOpen] = React.useState(false)
+  const [dbViews, setDbViews] = React.useState<
+    { id: string; name: string; viewType: string }[]
+  >([])
   const [user, setUser] = React.useState<{
     username: string
     displayName: string
@@ -95,10 +100,13 @@ export function AppSidebar() {
       .then((data) => setUser(data?.user ?? null))
       .catch(() => {})
   }, [])
-  const [advancedMode, setAdvancedMode] = React.useState(() => {
-    if (typeof window === "undefined") return false
-    return localStorage.getItem("openvlt:sidebar-mode") === "advanced"
-  })
+  const [advancedMode, setAdvancedMode] = React.useState(false)
+
+  // Sync from localStorage after mount to avoid SSR/client mismatch
+  React.useEffect(() => {
+    const stored = localStorage.getItem("openvlt:sidebar-mode") === "advanced"
+    setAdvancedMode(stored)
+  }, [])
 
   // Use a ref so fetchTree always reads the latest mode without re-creating
   const advancedModeRef = React.useRef(advancedMode)
@@ -151,6 +159,7 @@ export function AppSidebar() {
           setHasVault(active)
           if (active) {
             fetchTree()
+            fetchDbViews()
           }
         }
       } catch {
@@ -160,9 +169,17 @@ export function AppSidebar() {
     checkVault()
   }, [fetchTree])
 
+  const fetchDbViews = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/database-views")
+      if (res.ok) setDbViews(await res.json())
+    } catch {}
+  }, [])
+
   function handleVaultChange() {
     setHasVault(true)
     fetchTree()
+    fetchDbViews()
     router.push("/notes")
   }
 
@@ -216,6 +233,22 @@ export function AppSidebar() {
     fetchTree()
   }
 
+  async function handleCreateDbView() {
+    if (!hasVault) return
+    try {
+      const res = await fetch("/api/database-views", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Untitled View", viewType: "table" }),
+      })
+      if (res.ok) {
+        const view = await res.json()
+        openTab(`__dbview_${view.id}__`, view.name)
+        fetchDbViews()
+      }
+    } catch {}
+  }
+
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     if (searchQuery.trim()) {
@@ -258,9 +291,19 @@ export function AppSidebar() {
                   {quickAccessItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton
-                        onClick={() =>
-                          openTab(`__${item.filter}__`, item.title)
-                        }
+                        onClick={() => {
+                          openTab(item.tabId, item.favorites ? "All Notes" : item.title)
+                          if (item.favorites) {
+                            // Open All Notes tab with favorites filter enabled
+                            setTimeout(() => {
+                              window.dispatchEvent(
+                                new CustomEvent("openvlt:notes-filter", {
+                                  detail: { favorites: true },
+                                })
+                              )
+                            }, 0)
+                          }
+                        }}
                       >
                         <item.icon className="size-4" />
                         <span>{item.title}</span>
@@ -282,6 +325,38 @@ export function AppSidebar() {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+
+            {dbViews.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel>
+                  <TableIcon className="mr-1 size-3.5" />
+                  Database Views
+                  <button
+                    onClick={handleCreateDbView}
+                    title="New Database View"
+                    className="ml-auto inline-flex size-5 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <PlusIcon className="size-3.5" />
+                  </button>
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {dbViews.map((view) => (
+                      <SidebarMenuItem key={view.id}>
+                        <SidebarMenuButton
+                          onClick={() =>
+                            openTab(`__dbview_${view.id}__`, view.name)
+                          }
+                        >
+                          <TableIcon className="size-4" />
+                          <span>{view.name}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
 
             <SidebarSeparator />
 
@@ -361,6 +436,10 @@ export function AppSidebar() {
                   <FolderPlusIcon className="mr-2 size-4" />
                   New Folder
                 </ContextMenuItem>
+                <ContextMenuItem onClick={handleCreateDbView}>
+                  <TableIcon className="mr-2 size-4" />
+                  New Database View
+                </ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>
           </>
@@ -433,6 +512,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarResizer />
     </Sidebar>
 
     <CreateFolderDialog

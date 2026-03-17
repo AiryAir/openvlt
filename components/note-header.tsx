@@ -6,6 +6,7 @@ import {
   TrashIcon,
   LockIcon,
   UnlockIcon,
+  Columns2Icon,
   PanelRightIcon,
   XIcon,
   BookmarkPlusIcon,
@@ -26,18 +27,26 @@ import type { NoteMetadata } from "@/types/note"
 interface NoteHeaderProps {
   note: NoteMetadata
   isSplit?: boolean
+  pane?: "main" | "split"
   toolbarSlot?: React.ReactNode
 }
 
-export function NoteHeader({ note, isSplit = false, toolbarSlot }: NoteHeaderProps) {
-  const { closeTab, updateTabTitle, openSplit, splitNoteId, closeSplit } =
-    useTabStore()
+export function NoteHeader({ note, isSplit = false, pane = "main", toolbarSlot }: NoteHeaderProps) {
+  const {
+    closeTab,
+    updateTabTitle,
+    openSplit,
+    splitNoteId,
+    closeSplit,
+    closeMainAndPromoteSplit,
+  } = useTabStore()
   const [title, setTitle] = React.useState(note.title)
   const [isFavorite, setIsFavorite] = React.useState(note.isFavorite)
   const [isLocked, setIsLocked] = React.useState(note.isLocked)
   const [isBookmarked, setIsBookmarked] = React.useState(false)
   const [lockDialogOpen, setLockDialogOpen] = React.useState(false)
   const [icon, setIcon] = React.useState<string | null>(note.icon)
+  const [outlineOpen, setOutlineOpen] = React.useState(false)
   const [coverImage, setCoverImage] = React.useState<string | null>(
     note.coverImage
   )
@@ -56,6 +65,36 @@ export function NoteHeader({ note, isSplit = false, toolbarSlot }: NoteHeaderPro
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
   }, [moreOpen])
+
+  // Sync cover image state when editor adds/removes cover
+  React.useEffect(() => {
+    const handler = () => {
+      fetch(`/api/notes/${note.id}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.metadata?.coverImage !== undefined) {
+            setCoverImage(data.metadata.coverImage)
+          }
+        })
+        .catch(() => {})
+    }
+    window.addEventListener("openvlt:notes-refresh", handler)
+    return () => window.removeEventListener("openvlt:notes-refresh", handler)
+  }, [note.id])
+
+  const outlineStorageKey = `openvlt:outline-open:${pane}`
+  React.useEffect(() => {
+    setOutlineOpen(localStorage.getItem(outlineStorageKey) !== "false")
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.pane && detail.pane !== pane) return
+      requestAnimationFrame(() => {
+        setOutlineOpen(localStorage.getItem(outlineStorageKey) !== "false")
+      })
+    }
+    window.addEventListener("openvlt:toggle-outline", handler)
+    return () => window.removeEventListener("openvlt:toggle-outline", handler)
+  }, [pane, outlineStorageKey])
 
   React.useEffect(() => {
     fetch("/api/bookmarks")
@@ -106,7 +145,7 @@ export function NoteHeader({ note, isSplit = false, toolbarSlot }: NoteHeaderPro
     const formData = new FormData()
     formData.append("file", file)
 
-    const res = await fetch(`/api/attachments?noteId=${note.id}`, {
+    const res = await fetch(`/api/notes/${note.id}/attachments`, {
       method: "POST",
       body: formData,
     })
@@ -122,17 +161,6 @@ export function NoteHeader({ note, isSplit = false, toolbarSlot }: NoteHeaderPro
       toast.success("Cover image added")
       window.dispatchEvent(new Event("openvlt:notes-refresh"))
     }
-  }
-
-  async function handleRemoveCover() {
-    setCoverImage(null)
-    await fetch(`/api/notes/${note.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ coverImage: null }),
-    })
-    toast.success("Cover image removed")
-    window.dispatchEvent(new Event("openvlt:notes-refresh"))
   }
 
   async function handleToggleFavorite() {
@@ -172,35 +200,10 @@ export function NoteHeader({ note, isSplit = false, toolbarSlot }: NoteHeaderPro
 
   return (
     <>
-      {/* Cover image */}
-      {coverImage && (
-        <div
-          className="group/cover relative h-40 shrink-0 overflow-hidden bg-muted"
-          onMouseEnter={() => setCoverHovered(true)}
-          onMouseLeave={() => setCoverHovered(false)}
-        >
-          <img src={coverImage} alt="" className="h-full w-full object-cover" />
-          {coverHovered && (
-            <div className="absolute right-3 bottom-3 flex gap-1.5">
-              <button
-                onClick={() => coverInputRef.current?.click()}
-                className="rounded-md bg-background/80 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur-sm hover:bg-background/90"
-              >
-                Change cover
-              </button>
-              <button
-                onClick={handleRemoveCover}
-                className="rounded-md bg-background/80 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur-sm hover:bg-background/90"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <header className="flex h-10 shrink-0 items-center gap-2 border-b px-4">
-        {/* Page icon */}
+      {/* Desktop: single-row header.
+          min-w-0: prevents header buttons from causing horizontal overflow
+          in split view. The title input absorbs the squeeze. Do not remove. */}
+      <header className="hidden h-10 min-w-0 shrink-0 items-center gap-2 border-b px-4 md:flex">
         <IconPicker value={icon} onChange={handleIconChange}>
           <button
             className="flex shrink-0 items-center justify-center rounded-md hover:bg-accent"
@@ -218,13 +221,13 @@ export function NoteHeader({ note, isSplit = false, toolbarSlot }: NoteHeaderPro
           type="text"
           value={title}
           onChange={handleTitleChange}
-          className="flex-1 bg-transparent text-sm font-medium outline-none"
+          className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
           placeholder="Untitled"
         />
 
         {toolbarSlot}
 
-        <span className="text-sm text-muted-foreground">{timeAgo}</span>
+        <span className="shrink-0 text-sm text-muted-foreground">{timeAgo}</span>
 
         <div ref={moreRef} className="relative">
           <button
@@ -305,17 +308,198 @@ export function NoteHeader({ note, isSplit = false, toolbarSlot }: NoteHeaderPro
           )}
         </div>
 
+        {/* Close button: visible on both panes when split is active */}
         {isSplit && (
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={closeSplit}
-            title="Close split pane"
+            title="Close this pane"
+          >
+            <XIcon className="size-4" />
+          </Button>
+        )}
+        {!isSplit && splitNoteId && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={closeMainAndPromoteSplit}
+            title="Close this pane"
           >
             <XIcon className="size-4" />
           </Button>
         )}
       </header>
+
+      {/* Mobile: two-row header */}
+      <div className="shrink-0 border-b md:hidden">
+        {/* Row 1: icon + title + timestamp */}
+        <div className="flex h-10 items-center gap-2 px-3">
+          <IconPicker value={icon} onChange={handleIconChange}>
+            <button
+              className="flex shrink-0 items-center justify-center rounded-md hover:bg-accent"
+              title={icon ? "Change icon" : "Add icon"}
+            >
+              {icon ? (
+                <span className="text-lg leading-none">{icon}</span>
+              ) : (
+                <SmileIcon className="size-4 text-muted-foreground" />
+              )}
+            </button>
+          </IconPicker>
+
+          <input
+            type="text"
+            value={title}
+            onChange={handleTitleChange}
+            className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
+            placeholder="Untitled"
+          />
+
+          {toolbarSlot}
+
+          <span className="shrink-0 text-sm text-muted-foreground">
+            {timeAgo}
+          </span>
+        </div>
+
+        {/* Row 2: action buttons, horizontally scrollable */}
+        <div className="flex h-9 items-center gap-0.5 overflow-x-auto px-3 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {!coverImage && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              onClick={() => coverInputRef.current?.click()}
+              title="Add cover image"
+            >
+              <ImageIcon className="size-4" />
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            onClick={() => {
+              if (splitNoteId === note.id) {
+                closeSplit()
+              } else {
+                openSplit(note.id, title)
+              }
+            }}
+            title={splitNoteId === note.id ? "Close split" : "Open in split view"}
+          >
+            <Columns2Icon
+              className={`size-4 ${splitNoteId === note.id ? "text-primary" : ""}`}
+            />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent("openvlt:toggle-outline", { detail: { pane } }))
+            }
+            title="Outline"
+          >
+            <PanelRightIcon className="size-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            onClick={() => setLockDialogOpen(true)}
+            title={isLocked ? "Unlock note" : "Lock note"}
+          >
+            {isLocked ? (
+              <LockIcon className="size-4 text-yellow-500" />
+            ) : (
+              <UnlockIcon className="size-4" />
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent("openvlt:toggle-history", {
+                  detail: { noteId: note.id, folderId: note.parentId },
+                })
+              )
+            }
+            title="Version history"
+          >
+            <HistoryIcon className="size-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            onClick={async () => {
+              await addBookmark("note", title, note.id)
+              setIsBookmarked((prev) => !prev)
+            }}
+            title={isBookmarked ? "Remove bookmark" : "Add to bookmarks"}
+          >
+            {isBookmarked ? (
+              <BookmarkCheckIcon className="size-4 fill-primary text-primary" />
+            ) : (
+              <BookmarkPlusIcon className="size-4" />
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            onClick={handleToggleFavorite}
+            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          >
+            <StarIcon
+              className={`size-4 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`}
+            />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            onClick={handleDelete}
+            title="Move to trash"
+          >
+            <TrashIcon className="size-4" />
+          </Button>
+
+          {isSplit && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              onClick={closeSplit}
+              title="Close this pane"
+            >
+              <XIcon className="size-4" />
+            </Button>
+          )}
+          {!isSplit && splitNoteId && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              onClick={closeMainAndPromoteSplit}
+              title="Close this pane"
+            >
+              <XIcon className="size-4" />
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Hidden file input for cover image upload */}
       <input
@@ -336,6 +520,7 @@ export function NoteHeader({ note, isSplit = false, toolbarSlot }: NoteHeaderPro
           window.location.reload()
         }}
       />
+
     </>
   )
 }

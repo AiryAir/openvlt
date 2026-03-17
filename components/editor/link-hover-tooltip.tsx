@@ -3,6 +3,7 @@
 import * as React from "react"
 import type { Editor } from "@tiptap/core"
 import { ExternalLink, Pencil, Unlink, FileTextIcon } from "lucide-react"
+import { promptDialog } from "@/lib/dialogs"
 
 interface LinkHoverTooltipProps {
   editor: Editor | null
@@ -126,9 +127,9 @@ export function LinkHoverTooltip({
     window.open(link!.href, "_blank", "noopener,noreferrer")
   }
 
-  function handleEdit() {
+  async function handleEdit() {
     if (!editor) return
-    const url = prompt("Edit link URL:", link!.href)
+    const url = await promptDialog({ title: "Edit link", description: "Edit link URL:", defaultValue: link!.href })
     if (url === null) return
     if (url === "") {
       editor.chain().focus().unsetLink().run()

@@ -53,6 +53,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { CreateFolderDialog } from "@/components/create-folder-dialog"
+import { confirmDialog, promptDialog } from "@/lib/dialogs"
 import type { TreeNode } from "@/types/note"
 
 // ── Helpers ──
@@ -228,7 +229,7 @@ function TreeItem({
   // ── Actions ──
 
   async function handleCreateSiblingNote() {
-    const title = prompt("Note title:")
+    const title = await promptDialog({ title: "New note", description: "Note title:" })
     if (!title?.trim()) return
     try {
       const res = await fetch("/api/notes", {
@@ -250,7 +251,7 @@ function TreeItem({
   }
 
   async function handleCreateNote(folderId: string) {
-    const title = prompt("Note title:")
+    const title = await promptDialog({ title: "New note", description: "Note title:" })
     if (!title?.trim()) return
     try {
       const res = await fetch("/api/notes", {
@@ -268,7 +269,7 @@ function TreeItem({
   }
 
   async function handleCreateDrawing(folderId: string) {
-    const title = prompt("Drawing name:", "Untitled")
+    const title = await promptDialog({ title: "New drawing", description: "Drawing name:", defaultValue: "Untitled" })
     if (!title?.trim()) return
     try {
       const res = await fetch("/api/notes", {
@@ -297,7 +298,7 @@ function TreeItem({
   }
 
   async function handleCreateCanvas(folderId: string) {
-    const title = prompt("Canvas name:", "Untitled Canvas")
+    const title = await promptDialog({ title: "New canvas", description: "Canvas name:", defaultValue: "Untitled Canvas" })
     if (!title?.trim()) return
     try {
       const res = await fetch("/api/notes", {
@@ -335,8 +336,13 @@ function TreeItem({
 
   async function handleDelete() {
     if (node.type === "folder") {
-      if (!confirm(`Delete folder "${node.name}" and all its contents?`))
-        return
+      const confirmed = await confirmDialog({
+        title: "Delete folder",
+        description: `Delete folder "${node.name}" and all its contents?`,
+        confirmLabel: "Delete",
+        destructive: true,
+      })
+      if (!confirmed) return
       await fetch(`/api/folders/${node.id}`, { method: "DELETE" })
       // Close tabs for any notes inside the deleted folder
       if (node.children) {
@@ -356,7 +362,7 @@ function TreeItem({
   }
 
   async function handleRename() {
-    const newName = prompt(`Rename "${node.name}" to:`, node.name)
+    const newName = await promptDialog({ title: "Rename", description: `Rename "${node.name}" to:`, defaultValue: node.name })
     if (!newName?.trim() || newName.trim() === node.name) return
     if (node.type === "folder") {
       await fetch(`/api/folders/${node.id}`, {
@@ -392,10 +398,11 @@ function TreeItem({
     onRefresh()
   }
 
-  function handleMoveToPrompt() {
-    const target = prompt(
-      "Move to folder (enter folder name, or leave empty for root):"
-    )
+  async function handleMoveToPrompt() {
+    const target = await promptDialog({
+      title: "Move to folder",
+      description: "Enter folder name, or leave empty for root:",
+    })
     if (target === null) return
 
     // If empty, move to root
@@ -781,7 +788,13 @@ function AttachmentItem({
   const url = `/api/attachments/${node.id}`
 
   async function handleDelete() {
-    if (!confirm(`Delete "${node.name}"?`)) return
+    const confirmed = await confirmDialog({
+      title: "Delete note",
+      description: `Delete "${node.name}"?`,
+      confirmLabel: "Delete",
+      destructive: true,
+    })
+    if (!confirmed) return
     await fetch(url, { method: "DELETE" })
     onRefresh()
   }

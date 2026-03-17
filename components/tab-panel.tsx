@@ -7,6 +7,7 @@ import { ExcalidrawEditor } from "@/components/excalidraw-editor"
 import { CanvasEditor, type CanvasEditorState } from "@/components/canvas-editor"
 import { CanvasToolbarInline } from "@/components/canvas/canvas-toolbar-inline"
 import { LockPrompt } from "@/components/lock-dialog"
+import { NoteProperties } from "@/components/note-properties"
 import type { NoteMetadata } from "@/types"
 
 interface TabPanelProps {
@@ -103,21 +104,22 @@ export function TabPanel({ noteId, active, isSplit = false }: TabPanelProps) {
   if (isLocked) {
     return (
       <div className={`flex h-full min-w-0 flex-col overflow-hidden ${active ? "" : "hidden"}`}>
-        <NoteHeader note={metadata} isSplit={isSplit} />
-        <LockedNoteView noteId={noteId} metadata={metadata} isExcalidraw={isExcalidraw} isCanvas={isCanvas} />
+        <NoteHeader note={metadata} isSplit={isSplit} pane={isSplit ? "split" : "main"} />
+        <LockedNoteView noteId={noteId} metadata={metadata} isExcalidraw={isExcalidraw} isCanvas={isCanvas} isSplit={isSplit} />
       </div>
     )
   }
 
   return (
     <div className={`flex h-full min-w-0 flex-col overflow-hidden ${active ? "" : "hidden"}`}>
-      <NoteHeader note={metadata} isSplit={isSplit} toolbarSlot={canvasToolbar} />
+      <NoteHeader note={metadata} isSplit={isSplit} pane={isSplit ? "split" : "main"} toolbarSlot={canvasToolbar} />
+      {!isCanvas && !isExcalidraw && <NoteProperties noteId={metadata.id} />}
       {isCanvas ? (
         <CanvasEditor noteId={metadata.id} initialData={content} onEditorReady={setCanvasState} />
       ) : isExcalidraw ? (
         <ExcalidrawEditor noteId={metadata.id} initialData={content} />
       ) : (
-        <NoteEditor noteId={metadata.id} initialContent={content} initialVersion={metadata.version} />
+        <NoteEditor noteId={metadata.id} initialContent={content} initialVersion={metadata.version} coverImage={metadata.coverImage} pane={isSplit ? "split" : "main"} />
       )}
     </div>
   )
@@ -129,11 +131,13 @@ function LockedNoteView({
   metadata,
   isExcalidraw,
   isCanvas,
+  isSplit = false,
 }: {
   noteId: string
   metadata: NoteMetadata
   isExcalidraw: boolean
   isCanvas: boolean
+  isSplit?: boolean
 }) {
   const [decryptedContent, setDecryptedContent] = React.useState<string | null>(null)
 
@@ -154,6 +158,8 @@ function LockedNoteView({
       noteId={metadata.id}
       initialContent={decryptedContent}
       initialVersion={metadata.version}
+      coverImage={metadata.coverImage}
+      pane={isSplit ? "split" : "main"}
     />
   )
 }
