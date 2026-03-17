@@ -14,9 +14,12 @@ import {
   type TextNoteColor,
   type TextNoteShape,
 } from "@/lib/canvas/shapes/text-note-shape"
+import { HandwriteShapeUtil } from "@/lib/canvas/shapes/handwrite-shape"
 import { TextNoteTool } from "@/lib/canvas/tools/text-note-tool"
+import { HandwriteTool } from "@/lib/canvas/tools/handwrite-tool"
 import { CanvasToolbarInline } from "@/components/canvas/canvas-toolbar-inline"
 import { CanvasBackground } from "@/components/canvas/canvas-background"
+import { InkLayer } from "@/components/canvas/ink-layer"
 import {
   type PageSizeId,
   type BackgroundPattern,
@@ -28,8 +31,8 @@ import {
   saveCanvasSettings,
 } from "@/lib/canvas/page-config"
 
-const customShapeUtils = [TextNoteShapeUtil]
-const customTools = [TextNoteTool]
+const customShapeUtils = [TextNoteShapeUtil, HandwriteShapeUtil]
+const customTools = [TextNoteTool, HandwriteTool]
 
 const TEXT_NOTE_DEFAULTS_KEY = "openvlt:text-note-defaults"
 
@@ -128,8 +131,8 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
       // Enable grid so our custom background component renders
       editor.updateInstanceState({ isGridMode: true })
 
-      // Default to draw tool — finger auto-switches to hand for panning
-      editor.setCurrentTool("draw")
+      // Default to handwrite tool — low smoothing for natural handwriting
+      editor.setCurrentTool("handwrite")
 
       // Set initial camera bounds based on page size
       const settings = getCanvasSettings()
@@ -387,11 +390,19 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
         onStrokeSizeChange: updateStrokeSize,
       })
 
-      // Track camera for page button overlay
+      // Track camera for page button overlay and ink layer
       editor.store.listen(
         () => {
           const cam = editor.getCamera()
           setCamera({ x: cam.x, y: cam.y, z: cam.z ?? 1 })
+          // Check if handwrite tool is actively drawing
+          const tool = editor.root.getCurrent()?.getCurrent()
+          const drawing = tool?.isDrawing === true
+          setIsDrawing(drawing)
+          // Clear wet ink when camera moves and not drawing
+          if (!drawing && tool?.clearWetInk) {
+            tool.clearWetInk()
+          }
         },
         { source: "all", scope: "session" }
       )
@@ -551,6 +562,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
     React.useState<TextNoteShape | null>(null)
   const [defaultSaved, setDefaultSaved] = React.useState(false)
   const [camera, setCamera] = React.useState({ x: 0, y: 0, z: 1 })
+  const [isDrawing, setIsDrawing] = React.useState(false)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const addDebugRef = React.useRef((_msg: string) => {})
 
@@ -779,6 +791,21 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
         </div>
       )}
       <style jsx global>{`
+        .canvas-editor-wrapper .tl-shape[data-shape-type="handwrite"] {
+          contain: none !important;
+        }
+        .canvas-editor-wrapper .tl-shape[data-shape-type="handwrite"] svg {
+          overflow: visible !important;
+        }
+        /* Fix blurry rendering — prevent low-res rasterization */
+        .canvas-editor-wrapper .tl-html-layer {
+          contain: layout style !important;
+          will-change: transform;
+        }
+        .canvas-editor-wrapper .tl-shape {
+          contain: layout !important;
+          will-change: transform;
+        }
         .canvas-editor-wrapper .tl-grid {
           contain: none !important;
         }
@@ -895,6 +922,8 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
             createTextOnCanvasDoubleClick: false,
           }}
         />
+      {/* High-DPI ink layer — renders handwrite strokes at native screen resolution */}
+      <InkLayer editor={editorRef.current} camera={camera} isDrawing={isDrawing} />
       {/* Page mask overlay — covers areas outside pages to hide out-of-bounds content */}
       {pageSize !== "infinite" && (() => {
         const pd = PAGE_SIZES.find(p => p.id === pageSize)

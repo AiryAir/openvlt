@@ -147,7 +147,7 @@ export function CanvasToolbarInline({ editor, pageSize: initialPageSize, backgro
 
       <div className="mx-0.5 h-4 w-px bg-border" />
 
-      <button onClick={() => selectTool("draw")} className={btn(currentTool === "draw")} title="Pen (D)">
+      <button onClick={() => selectTool("handwrite")} className={btn(currentTool === "handwrite" || currentTool === "draw")} title="Pen (D)">
         <PenToolIcon className="size-3.5" />
       </button>
       <button onClick={() => selectTool("eraser")} className={btn(currentTool === "eraser")} title="Eraser (E)">
