@@ -83,6 +83,10 @@ export function TabPanel({ noteId, active, isSplit = false }: TabPanelProps) {
       onBackgroundChange={canvasState.onBackgroundChange}
       onAddPage={canvasState.onAddPage}
       onRemovePage={canvasState.onRemovePage}
+      strokeColor={canvasState.strokeColor}
+      strokeSize={canvasState.strokeSize}
+      onStrokeColorChange={canvasState.onStrokeColorChange}
+      onStrokeSizeChange={canvasState.onStrokeSizeChange}
     />
   ) : null
 

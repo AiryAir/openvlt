@@ -87,6 +87,10 @@ export interface CanvasEditorState {
   onBackgroundChange: (bg: BackgroundPattern) => void
   onAddPage: () => void
   onRemovePage: () => void
+  strokeColor: string
+  strokeSize: string
+  onStrokeColorChange: (color: string) => void
+  onStrokeSizeChange: (size: string) => void
 }
 
 interface CanvasEditorProps {
@@ -377,6 +381,10 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
         onBackgroundChange: handleBackgroundChange,
         onAddPage: handleAddPage,
         onRemovePage: handleRemovePage,
+        strokeColor: getStrokeDefaults().color,
+        strokeSize: getStrokeDefaults().size,
+        onStrokeColorChange: updateStrokeColor,
+        onStrokeSizeChange: updateStrokeSize,
       })
 
       // Track camera for page button overlay
@@ -391,6 +399,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
       // Track text-note selection for the style bar
       function updateSelectedTextNote() {
         const tool = editor.getCurrentToolId()
+        setCurrentToolId(tool)
         // Only show style bar when in select mode with a text-note selected
         if (tool !== "select") {
           setSelectedTextNote(null)
@@ -544,6 +553,44 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
   const [camera, setCamera] = React.useState({ x: 0, y: 0, z: 1 })
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const addDebugRef = React.useRef((_msg: string) => {})
+
+  // Track current tool for showing stroke style bar
+  const [currentToolId, setCurrentToolId] = React.useState("draw")
+
+  // Stroke style state (for draw/pen tool)
+  const STROKE_DEFAULTS_KEY = "openvlt:stroke-defaults"
+  const getStrokeDefaults = () => {
+    if (typeof window === "undefined") return { color: "black", size: "m", width: 3.5 }
+    try {
+      const s = localStorage.getItem(STROKE_DEFAULTS_KEY)
+      if (s) return JSON.parse(s)
+    } catch {}
+    return { color: "black", size: "m", width: 3.5 }
+  }
+  const [strokeColor, setStrokeColor] = React.useState(() => getStrokeDefaults().color)
+  const [strokeSize, setStrokeSize] = React.useState(() => getStrokeDefaults().size)
+  const [strokeBarOpen, setStrokeBarOpen] = React.useState(true)
+  const [strokeDefaultSaved, setStrokeDefaultSaved] = React.useState(false)
+
+  const updateStrokeColor = React.useCallback((color: string) => {
+    setStrokeColor(color)
+    if (!editorRef.current) return
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { DefaultColorStyle } = require("@tldraw/tlschema")
+      editorRef.current.setStyleForNextShapes(DefaultColorStyle, color)
+    } catch {}
+  }, [])
+
+  const updateStrokeSize = React.useCallback((size: string) => {
+    setStrokeSize(size)
+    if (!editorRef.current) return
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { DefaultSizeStyle } = require("@tldraw/tlschema")
+      editorRef.current.setStyleForNextShapes(DefaultSizeStyle, size)
+    } catch {}
+  }, [])
 
   const updateTextNoteStyle = React.useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
