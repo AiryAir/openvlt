@@ -10,8 +10,15 @@ import {
   XIcon,
   BookmarkPlusIcon,
   HistoryIcon,
+  MoreHorizontalIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useTabStore } from "@/lib/stores/tab-store"
 import { LockDialog } from "@/components/lock-dialog"
 import { addBookmark } from "@/components/bookmarks-panel"
@@ -20,9 +27,10 @@ import type { NoteMetadata } from "@/types/note"
 interface NoteHeaderProps {
   note: NoteMetadata
   isSplit?: boolean
+  toolbarSlot?: React.ReactNode
 }
 
-export function NoteHeader({ note, isSplit = false }: NoteHeaderProps) {
+export function NoteHeader({ note, isSplit = false, toolbarSlot }: NoteHeaderProps) {
   const { closeTab, updateTabTitle, openSplit, splitNoteId, closeSplit } =
     useTabStore()
   const [title, setTitle] = React.useState(note.title)
@@ -84,81 +92,65 @@ export function NoteHeader({ note, isSplit = false }: NoteHeaderProps) {
           placeholder="Untitled"
         />
 
+        {toolbarSlot}
+
         <span className="text-sm text-muted-foreground">{timeAgo}</span>
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => {
-            if (splitNoteId === note.id) {
-              closeSplit()
-            } else {
-              openSplit(note.id, title)
-            }
-          }}
-          title={splitNoteId === note.id ? "Close split" : "Open in split view"}
-        >
-          <PanelRightIcon
-            className={`size-4 ${splitNoteId === note.id ? "text-primary" : ""}`}
-          />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setLockDialogOpen(true)}
-          title={isLocked ? "Unlock note" : "Lock note"}
-        >
-          {isLocked ? (
-            <LockIcon className="size-4 text-yellow-500" />
-          ) : (
-            <UnlockIcon className="size-4" />
-          )}
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() =>
-            window.dispatchEvent(
-              new CustomEvent("openvlt:toggle-history", {
-                detail: { noteId: note.id, folderId: note.parentId },
-              })
-            )
-          }
-          title="Version history (Cmd+Shift+H)"
-        >
-          <HistoryIcon className="size-4" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => addBookmark("note", title, note.id)}
-          title="Add to bookmarks"
-        >
-          <BookmarkPlusIcon className="size-4" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleToggleFavorite}
-          title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-        >
-          <StarIcon
-            className={`size-4 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`}
-          />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleDelete}
-          title="Move to trash"
-        >
-          <TrashIcon className="size-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" title="More options">
+              <MoreHorizontalIcon className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem
+              onClick={() => {
+                if (splitNoteId === note.id) {
+                  closeSplit()
+                } else {
+                  openSplit(note.id, title)
+                }
+              }}
+            >
+              <PanelRightIcon className="mr-2 size-4" />
+              {splitNoteId === note.id ? "Close split" : "Split view"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setLockDialogOpen(true)}>
+              {isLocked ? (
+                <LockIcon className="mr-2 size-4 text-yellow-500" />
+              ) : (
+                <UnlockIcon className="mr-2 size-4" />
+              )}
+              {isLocked ? "Unlock note" : "Lock note"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent("openvlt:toggle-history", {
+                    detail: { noteId: note.id, folderId: note.parentId },
+                  })
+                )
+              }
+            >
+              <HistoryIcon className="mr-2 size-4" />
+              Version history
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => addBookmark("note", title, note.id)}>
+              <BookmarkPlusIcon className="mr-2 size-4" />
+              Add to bookmarks
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleToggleFavorite}>
+              <StarIcon
+                className={`mr-2 size-4 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`}
+              />
+              {isFavorite ? "Remove favorite" : "Add to favorites"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+              <TrashIcon className="mr-2 size-4" />
+              Move to trash
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {isSplit && (
           <Button
