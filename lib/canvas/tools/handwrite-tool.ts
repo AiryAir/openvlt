@@ -41,10 +41,14 @@ export class HandwriteTool extends StateNode {
 
   override onEnter() {
     this.editor.setCursor({ type: "cross", rotation: 0 })
+    this.initWetInkCanvas()
+  }
 
-    // Create wet ink canvas overlay
+  private initWetInkCanvas() {
+    if (this.canvas) return
+
     const container = document.querySelector(".canvas-editor-wrapper .tl-container")
-    if (container && !this.canvas) {
+    if (container) {
       this.canvas = document.createElement("canvas")
       this.canvas.style.cssText =
         "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;"
@@ -57,6 +61,9 @@ export class HandwriteTool extends StateNode {
         this.ctx.scale(dpr, dpr)
       }
       container.appendChild(this.canvas)
+    } else {
+      // Container not ready yet — retry next frame
+      requestAnimationFrame(() => this.initWetInkCanvas())
     }
   }
 
@@ -80,6 +87,9 @@ export class HandwriteTool extends StateNode {
   }
 
   override onPointerDown() {
+    // Ensure wet ink canvas exists (fallback if onEnter rAF hasn't fired yet)
+    if (!this.canvas) this.initWetInkCanvas()
+
     const { x, y, z } = this.editor.inputs.currentPagePoint
     const pressure = this.isPressureEnabled() ? (z ?? 0.5) : 0.5
     this.shapeId = createShapeId()
@@ -91,7 +101,8 @@ export class HandwriteTool extends StateNode {
     this.maxX = 0
     this.maxY = 0
 
-    // Get style
+    // Get style from stroke defaults only (not tldraw's shared DefaultSizeStyle
+    // which gets polluted by the text-note tool's font size)
     let colorName = "black"
     let sizeName = "m"
     try {
@@ -101,14 +112,6 @@ export class HandwriteTool extends StateNode {
         colorName = parsed.color || "black"
         sizeName = parsed.size || "m"
       }
-    } catch {}
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      // DefaultColorStyle, DefaultSizeStyle imported at top level
-      const c = this.editor.getStyleForNextShape(DefaultColorStyle)
-      const s = this.editor.getStyleForNextShape(DefaultSizeStyle)
-      if (c) colorName = c as string
-      if (s) sizeName = s as string
     } catch {}
 
     this.color = this.COLOR_MAP[colorName] || "#1d1d1d"
@@ -214,7 +217,7 @@ export class HandwriteTool extends StateNode {
       })
     })
 
-    // Get style names for the shape
+    // Get style names for the shape from stroke defaults only
     let colorName = "black"
     let sizeName = "m"
     try {
@@ -224,14 +227,6 @@ export class HandwriteTool extends StateNode {
         colorName = parsed.color || "black"
         sizeName = parsed.size || "m"
       }
-    } catch {}
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      // DefaultColorStyle, DefaultSizeStyle imported at top level
-      const c = this.editor.getStyleForNextShape(DefaultColorStyle)
-      const s = this.editor.getStyleForNextShape(DefaultSizeStyle)
-      if (c) colorName = c as string
-      if (s) sizeName = s as string
     } catch {}
 
     // Create the final shape
