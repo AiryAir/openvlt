@@ -194,9 +194,7 @@ export class HandwriteTool extends StateNode {
       const ly = this.lastScreenY - sb.y
 
       const zoom = this.editor.getZoomLevel()
-      const pressureEnabled = this.isPressureEnabled()
-      const pw = pressureEnabled ? (0.3 + pressure * 1.2) : 1
-      const w = Math.max(0.5, this.strokeWidth * pw * zoom)
+      const w = Math.max(0.5, this.strokeWidth * zoom)
 
       this.ctx.globalAlpha = this.opacity
       this.ctx.strokeStyle = this.color

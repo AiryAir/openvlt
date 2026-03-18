@@ -721,8 +721,20 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
     saveCanvasSettings({ pageSize, background, pageCount: newCount, ruleStyle, customSpacing, pressureSensitivity })
   }, [pageSize, background, pageCount])
 
-  const handleAddPageAt = React.useCallback((_index: number) => {
-    // For now just add a page (position doesn't matter since pages are identical)
+  const handleAddPageAt = React.useCallback((index: number) => {
+    const editor = editorRef.current
+    const pd = PAGE_SIZES.find(p => p.id === pageSize)
+    if (editor && pd && pd.width > 0) {
+      // Shift all shapes on pages at or after `index` down by one page height + gap
+      const shift = pd.height + PAGE_GAP
+      const insertY = index * (pd.height + PAGE_GAP)
+      const allShapes = editor.getCurrentPageShapes()
+      for (const s of allShapes) {
+        if (s.y >= insertY) {
+          editor.updateShape({ id: s.id, type: s.type, y: s.y + shift })
+        }
+      }
+    }
     const newCount = pageCount + 1
     setPageCount(newCount)
     saveCanvasSettings({ pageSize, background, pageCount: newCount, ruleStyle, customSpacing, pressureSensitivity })
@@ -972,7 +984,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
       {pageSize !== "infinite" && (() => {
         const pd = PAGE_SIZES.find(p => p.id === pageSize)
         if (!pd || pd.width === 0) return null
-        const buttons: { key: string; sx: number; sy: number }[] = []
+        const buttons: { key: string; sx: number; sy: number; index: number }[] = []
         const btnPageX = pd.width / 2
 
         for (let i = 0; i <= pageCount; i++) {
@@ -988,13 +1000,14 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
             key: `add-${i}`,
             sx: (btnPageX + camera.x) * camera.z,
             sy: (btnPageY + camera.y) * camera.z,
+            index: i,
           })
         }
 
         return buttons.map(btn => (
           <button
             key={btn.key}
-            onClick={() => handleAddPage()}
+            onClick={() => handleAddPageAt(btn.index)}
             onPointerDown={(e) => e.stopPropagation()}
             style={{
               position: "absolute",
