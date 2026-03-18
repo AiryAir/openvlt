@@ -1228,9 +1228,14 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
       <style jsx global>{`
         .canvas-editor-wrapper .tl-shape[data-shape-type="handwrite"] {
           contain: none !important;
+          background: none !important;
+          box-shadow: none !important;
         }
         .canvas-editor-wrapper .tl-shape[data-shape-type="handwrite"] svg {
           overflow: visible !important;
+        }
+        .canvas-editor-wrapper .tl-shape[data-shape-type="handwrite"] > div {
+          background: none !important;
         }
         .canvas-editor-wrapper .tl-shape[data-shape-type="text-note"] {
           contain: none !important;

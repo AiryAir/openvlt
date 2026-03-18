@@ -122,9 +122,13 @@ export class HandwriteShapeUtil extends ShapeUtil<HandwriteShape> {
     const color = COLOR_MAP[shape.props.color] || COLOR_MAP.black
 
     // Handwrite shapes are rendered on the high-DPI InkLayer canvas.
-    // Return invisible placeholder so tldraw still tracks the shape.
+    // Return invisible SVG so tldraw tracks the shape without any visible container.
     if (rawPoints.length === 0) return null
-    return <div style={{ width: 1, height: 1, opacity: 0 }} />
+    return (
+      <svg style={{ width: "100%", height: "100%", overflow: "visible", opacity: 0, pointerEvents: "none" }}>
+        <rect width="1" height="1" fill="none" />
+      </svg>
+    )
   }
 
   override indicator(shape: HandwriteShape) {
