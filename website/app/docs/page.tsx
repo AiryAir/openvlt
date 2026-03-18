@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ExternalLink,
+  HelpCircle,
   Server,
   Sparkles,
 } from "lucide-react"
@@ -21,6 +22,13 @@ const docs = [
       "Connect ChatGPT, Claude, or API keys to chat with your notes.",
     href: "/docs/ai-setup",
     icon: Sparkles,
+  },
+  {
+    title: "FAQ",
+    description:
+      "Common questions about sync, architecture, and design decisions.",
+    href: "/docs/faq",
+    icon: HelpCircle,
   },
 ]
 
