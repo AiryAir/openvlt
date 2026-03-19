@@ -230,7 +230,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
           // When "draw with finger" is enabled, let single-finger touches through to tldraw
           if (drawWithFingerRef.current) return
 
-          e.stopPropagation()
+          e.stopImmediatePropagation()
 
           touchPointers.set(pe.pointerId, { x: pe.clientX, y: pe.clientY })
           activeTouchCount = touchPointers.size
@@ -274,7 +274,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
           const pe = e as PointerEvent
           if (pe.pointerType !== "touch") return
           if (drawWithFingerRef.current) return
-          e.stopPropagation()
+          e.stopImmediatePropagation()
 
           touchPointers.set(pe.pointerId, { x: pe.clientX, y: pe.clientY })
 
@@ -323,7 +323,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
           const pe = e as PointerEvent
           if (pe.pointerType !== "touch") return
           if (drawWithFingerRef.current) return
-          e.stopPropagation()
+          e.stopImmediatePropagation()
 
           // Double-tap detection (only on single-finger tap with minimal movement)
           if (isTouchPanning) {
