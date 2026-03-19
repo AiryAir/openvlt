@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get("X-Peer-Signature")
 
     if (!pairingId || !peerId || !timestamp || !signature) {
-      return NextResponse.json({ error: "Missing peer headers" }, { status: 400 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.text()
