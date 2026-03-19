@@ -11,7 +11,7 @@ export default function GetStartedRedirect() {
   }, [router])
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] text-stone-500">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--page-bg)] text-[var(--text-muted)]">
       <p className="text-sm">Redirecting...</p>
     </div>
   )

@@ -10,10 +10,29 @@ import type {
 } from "@simplewebauthn/server"
 import { v4 as uuid } from "uuid"
 import { getDb } from "@/lib/db"
+import { getConfig } from "@/lib/admin/config"
 
 const RP_NAME = "openvlt"
-const RP_ID = process.env.WEBAUTHN_RP_ID || "localhost"
-const ORIGIN = process.env.WEBAUTHN_ORIGIN || "http://localhost:3000"
+
+function getRpId(): string {
+  if (process.env.WEBAUTHN_RP_ID) return process.env.WEBAUTHN_RP_ID
+  const domain = getConfig("instance_domain")
+  if (domain) {
+    try {
+      return new URL(domain).hostname
+    } catch {
+      // Invalid URL, fall through
+    }
+  }
+  return "localhost"
+}
+
+function getOrigin(): string {
+  if (process.env.WEBAUTHN_ORIGIN) return process.env.WEBAUTHN_ORIGIN
+  const domain = getConfig("instance_domain")
+  if (domain) return domain
+  return "http://localhost:3456"
+}
 
 // In-memory challenge store (per-user, short-lived)
 const challenges = new Map<string, string>()
@@ -28,7 +47,7 @@ export async function generateRegOptions(userId: string, username: string) {
 
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
-    rpID: RP_ID,
+    rpID: getRpId(),
     userName: username,
     userID: new TextEncoder().encode(userId),
     attestationType: "none",
@@ -57,8 +76,8 @@ export async function verifyRegistration(
   const verification = await verifyRegistrationResponse({
     response,
     expectedChallenge,
-    expectedOrigin: ORIGIN,
-    expectedRPID: RP_ID,
+    expectedOrigin: getOrigin(),
+    expectedRPID: getRpId(),
   })
 
   if (!verification.verified || !verification.registrationInfo) {
@@ -102,7 +121,7 @@ export async function generateAuthOptions(username: string) {
   }
 
   const options = await generateAuthenticationOptions({
-    rpID: RP_ID,
+    rpID: getRpId(),
     allowCredentials: credentials.map((c) => ({
       id: c.credential_id,
     })),
@@ -135,8 +154,8 @@ export async function verifyAuthentication(
   const verification = await verifyAuthenticationResponse({
     response,
     expectedChallenge,
-    expectedOrigin: ORIGIN,
-    expectedRPID: RP_ID,
+    expectedOrigin: getOrigin(),
+    expectedRPID: getRpId(),
     credential: {
       id: credential.credential_id,
       publicKey: Buffer.from(credential.public_key, "base64"),

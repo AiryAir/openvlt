@@ -829,6 +829,59 @@ const migrations: Migration[] = [
       `)
     },
   },
+  {
+    version: 19,
+    description: "Add admin system and instance config",
+    up: (db) => {
+      const hasColumn = (table: string, column: string) => {
+        const cols = db.pragma(`table_info(${table})`) as { name: string }[]
+        return cols.some((c) => c.name === column)
+      }
+
+      // Add is_admin column to users
+      if (!hasColumn("users", "is_admin")) {
+        db.exec(
+          "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0"
+        )
+      }
+
+      // Create instance_config table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS instance_config (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `)
+
+      // Handle existing instances: if users already exist, promote the first user
+      // and mark setup as complete to preserve current behavior
+      const userCount = (
+        db
+          .prepare("SELECT COUNT(*) as count FROM users")
+          .get() as { count: number }
+      ).count
+
+      if (userCount > 0) {
+        // Set the first user (by created_at) as admin
+        db.exec(
+          `UPDATE users SET is_admin = 1 WHERE id = (
+            SELECT id FROM users ORDER BY created_at ASC LIMIT 1
+          )`
+        )
+
+        // Mark setup as complete since instance is already in use
+        db.prepare(
+          "INSERT OR IGNORE INTO instance_config (key, value) VALUES (?, ?)"
+        ).run("setup_completed", "true")
+
+        // Preserve current open registration behavior
+        db.prepare(
+          "INSERT OR IGNORE INTO instance_config (key, value) VALUES (?, ?)"
+        ).run("registration_open", "true")
+      }
+    },
+  },
 ]
 
 export function runMigrations(db: Database.Database) {

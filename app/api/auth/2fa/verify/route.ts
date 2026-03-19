@@ -59,11 +59,12 @@ export async function POST(request: NextRequest) {
     // Get user info for the response
     const db = getDb()
     const userRow = db
-      .prepare("SELECT id, username, display_name, created_at FROM users WHERE id = ?")
+      .prepare("SELECT id, username, display_name, is_admin, created_at FROM users WHERE id = ?")
       .get(pending.userId) as {
       id: string
       username: string
       display_name: string
+      is_admin: number
       created_at: string
     }
 
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
         id: userRow.id,
         username: userRow.username,
         displayName: userRow.display_name,
+        isAdmin: userRow.is_admin === 1,
         createdAt: userRow.created_at,
       },
     })

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import {
   SunIcon,
@@ -121,26 +121,35 @@ export function SettingsPanel() {
     useSidebarLayout()
   const [user, setUser] = React.useState<User | null>(null)
 
-  // Persist active settings tab in URL hash (survives refresh)
+  // Read active settings section from URL pathname (/settings/ai, /settings/data, etc.)
+  const pathname = usePathname()
   const validTabs = ["general", "account", "data", "sync", "shortcuts", "ai", "appearance", "about"]
-  const [activeTab, setActiveTabState] = React.useState(() => {
-    if (typeof window === "undefined") return "general"
-    const hash = window.location.hash.slice(1) // remove #
-    return validTabs.includes(hash) ? hash : "general"
-  })
+  const sectionFromPath = React.useMemo(() => {
+    // Extract section from /settings/[section] — also handle legacy #hash
+    const segments = pathname.split("/")
+    const lastSegment = segments[segments.length - 1]
+    if (lastSegment !== "settings" && validTabs.includes(lastSegment)) {
+      return lastSegment
+    }
+    // Fallback to hash for backwards compatibility
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.slice(1)
+      if (validTabs.includes(hash)) return hash
+    }
+    return "general"
+  }, [pathname])
+
+  const [activeTab, setActiveTabState] = React.useState(sectionFromPath)
+
+  // Sync when pathname changes (e.g. navigating from /settings/general to /settings/ai)
+  React.useEffect(() => {
+    setActiveTabState(sectionFromPath)
+  }, [sectionFromPath])
+
   const setActiveTab = React.useCallback((tab: string) => {
     setActiveTabState(tab)
-    window.history.replaceState(null, "", `#${tab}`)
-  }, [])
-  // Listen for hash changes (browser back/forward)
-  React.useEffect(() => {
-    const onHashChange = () => {
-      const hash = window.location.hash.slice(1)
-      if (validTabs.includes(hash)) setActiveTabState(hash)
-    }
-    window.addEventListener("hashchange", onHashChange)
-    return () => window.removeEventListener("hashchange", onHashChange)
-  }, [])
+    router.replace(`/settings/${tab}`, { scroll: false })
+  }, [router])
 
   const tabsScrollRef = React.useRef<HTMLDivElement>(null)
 

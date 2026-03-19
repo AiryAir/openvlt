@@ -52,6 +52,20 @@ export async function requireAuth(): Promise<User> {
   return session.user
 }
 
+export async function requireAdmin(): Promise<User> {
+  const session = await getSession()
+
+  if (!session) {
+    throw new AuthError("Unauthorized")
+  }
+
+  if (!session.user.isAdmin) {
+    throw new AuthError("Forbidden", 403)
+  }
+
+  return session.user
+}
+
 export async function requireAuthWithVault(): Promise<{
   user: User
   vaultId: string

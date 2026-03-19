@@ -17,7 +17,8 @@ interface CreateUserResult {
 export async function createUser(
   username: string,
   password: string,
-  displayName: string
+  displayName: string,
+  options?: { isAdmin?: boolean }
 ): Promise<CreateUserResult> {
   const db = getDb()
 
@@ -33,16 +34,25 @@ export async function createUser(
   const recoveryKey = generateRecoveryKey()
   const recoveryKeyHash = await hashPassword(recoveryKey)
   const now = new Date().toISOString()
+  const isAdmin = options?.isAdmin ? 1 : 0
 
   db.prepare(
-    `INSERT INTO users (id, username, display_name, password_hash, recovery_key_hash, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(id, username, displayName, passwordHash, recoveryKeyHash, now)
+    `INSERT INTO users (id, username, display_name, password_hash, recovery_key_hash, is_admin, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, username, displayName, passwordHash, recoveryKeyHash, isAdmin, now)
 
   return {
-    user: { id, username, displayName, createdAt: now },
+    user: { id, username, displayName, isAdmin: !!options?.isAdmin, createdAt: now },
     recoveryKey,
   }
+}
+
+export function isUserAdmin(userId: string): boolean {
+  const db = getDb()
+  const row = db
+    .prepare("SELECT is_admin FROM users WHERE id = ?")
+    .get(userId) as { is_admin: number } | undefined
+  return row?.is_admin === 1
 }
 
 export async function authenticateUser(
@@ -58,6 +68,7 @@ export async function authenticateUser(
         username: string
         display_name: string
         password_hash: string
+        is_admin: number
         created_at: string
       }
     | undefined
@@ -71,6 +82,7 @@ export async function authenticateUser(
     id: row.id,
     username: row.username,
     displayName: row.display_name,
+    isAdmin: row.is_admin === 1,
     createdAt: row.created_at,
   }
 }
@@ -102,7 +114,7 @@ export function validateSession(
   const db = getDb()
   const row = db
     .prepare(
-      `SELECT s.*, u.id as uid, u.username, u.display_name, u.created_at as user_created_at
+      `SELECT s.*, u.id as uid, u.username, u.display_name, u.is_admin, u.created_at as user_created_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        WHERE s.token = ?`
@@ -117,6 +129,7 @@ export function validateSession(
         uid: string
         username: string
         display_name: string
+        is_admin: number
         user_created_at: string
       }
     | undefined
@@ -155,6 +168,7 @@ export function validateSession(
       id: row.uid,
       username: row.username,
       displayName: row.display_name,
+      isAdmin: row.is_admin === 1,
       createdAt: row.user_created_at,
     },
   }

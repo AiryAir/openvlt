@@ -14,6 +14,25 @@ export default function RegisterPage() {
   const [loading, setLoading] = React.useState(false)
   const [recoveryKey, setRecoveryKey] = React.useState("")
   const [copied, setCopied] = React.useState(false)
+  const [blocked, setBlocked] = React.useState(false)
+  const [checking, setChecking] = React.useState(true)
+
+  // Check setup status and registration policy
+  React.useEffect(() => {
+    fetch("/api/admin/setup-status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.setupComplete) {
+          router.replace("/setup")
+          return
+        }
+        if (!data.registrationOpen) {
+          setBlocked(true)
+        }
+        setChecking(false)
+      })
+      .catch(() => setChecking(false))
+  }, [router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -50,6 +69,42 @@ export default function RegisterPage() {
 
   function handleContinue() {
     router.push("/login")
+  }
+
+  if (checking) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-12">
+        <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (blocked) {
+    return (
+      <div className="flex flex-col items-center gap-6">
+        <Image
+          src="/incorrect.svg"
+          alt="openvlt"
+          width={80}
+          height={80}
+          className="size-20"
+          priority
+        />
+        <div className="flex flex-col items-center gap-2">
+          <h1 className="text-2xl font-semibold">Registration disabled</h1>
+          <p className="text-center text-sm text-muted-foreground">
+            Registration is not available on this instance. Contact your
+            administrator to get an account.
+          </p>
+        </div>
+        <a
+          href="/login"
+          className="h-9 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Go to login
+        </a>
+      </div>
+    )
   }
 
   if (recoveryKey) {

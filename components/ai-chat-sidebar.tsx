@@ -41,11 +41,13 @@ import {
   Loader2,
   PaperclipIcon,
   PlusIcon,
+  Settings,
   Sparkles,
   Trash2,
   ArrowLeftIcon,
   MessageSquareIcon,
 } from "lucide-react"
+import Link from "next/link"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -479,6 +481,29 @@ function AIChatPanel() {
   const [selectedModel, setSelectedModel] =
     React.useState<ModelSelection | null>(null)
   const [contextWindow, setContextWindow] = React.useState(272_000)
+  const [aiSetupStatus, setAiSetupStatus] = React.useState<{
+    checked: boolean
+    chatEnabled: boolean
+    hasProviders: boolean
+  }>({ checked: false, chatEnabled: false, hasProviders: false })
+
+  // Check AI config on mount
+  React.useEffect(() => {
+    fetch("/api/ai/config")
+      .then((r) => r.json())
+      .then((config) => {
+        setAiSetupStatus({
+          checked: true,
+          chatEnabled: config.chatEnabled === true,
+          hasProviders:
+            Array.isArray(config.chatProviders) &&
+            config.chatProviders.length > 0,
+        })
+      })
+      .catch(() => {
+        setAiSetupStatus({ checked: true, chatEnabled: false, hasProviders: false })
+      })
+  }, [])
   const modelsRef = React.useRef<ModelInfo[]>([])
   const [isDragOver, setIsDragOver] = React.useState(false)
   const [showHistory, setShowHistory] = React.useState(false)
@@ -710,6 +735,29 @@ function AIChatPanel() {
                   <p className="text-sm text-muted-foreground">
                     Loading conversation...
                   </p>
+                </>
+              ) : aiSetupStatus.checked &&
+                (!aiSetupStatus.chatEnabled ||
+                  !aiSetupStatus.hasProviders) ? (
+                <>
+                  <Settings className="size-8 text-muted-foreground/40" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      AI chat is not set up yet
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground/70">
+                      {!aiSetupStatus.chatEnabled
+                        ? "AI chat is currently disabled. You can enable it in Settings and connect a provider to start using AI with your notes."
+                        : "No AI provider is configured. Add an API key for a provider like OpenAI, Anthropic, or OpenRouter in Settings to get started."}
+                    </p>
+                  </div>
+                  <Link
+                    href="/settings/ai"
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Settings className="size-3.5" />
+                    Open AI Settings
+                  </Link>
                 </>
               ) : (
                 <>

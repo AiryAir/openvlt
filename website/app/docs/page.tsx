@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { ThemeToggle } from "@/app/theme-toggle"
 import {
   ArrowLeft,
   ArrowRight,
@@ -34,29 +35,32 @@ const docs = [
 
 export default function DocsIndex() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-[var(--page-bg)] text-[var(--text-primary)]">
       {/* Nav */}
-      <nav className="fixed top-0 z-50 flex w-full items-center justify-between border-b border-white/5 bg-[#0a0a0a]/80 px-6 py-4 backdrop-blur-xl">
+      <nav className="fixed top-0 z-50 flex w-full items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--nav-bg)] px-6 py-4 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="flex items-center gap-2 font-mono text-sm text-stone-500 transition-colors hover:text-white"
+            className="flex items-center gap-2 font-mono text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
           >
             <ArrowLeft className="size-3.5" />
             openvlt
           </Link>
-          <span className="text-stone-800">/</span>
+          <span className="text-[var(--text-ghost)]">/</span>
           <span className="text-sm font-medium">Docs</span>
         </div>
-        <a
-          href="https://github.com/ericvaish/openvlt"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-sm text-stone-500 transition-colors hover:text-white"
-        >
-          GitHub
-          <ExternalLink className="size-3" />
-        </a>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <a
+            href="https://github.com/ericvaish/openvlt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+          >
+            GitHub
+            <ExternalLink className="size-3" />
+          </a>
+        </div>
       </nav>
 
       <div className="mx-auto max-w-3xl px-6 pt-24 pb-24">
@@ -65,7 +69,7 @@ export default function DocsIndex() {
           <h1 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Documentation
           </h1>
-          <p className="max-w-xl text-lg leading-relaxed text-stone-400">
+          <p className="max-w-xl text-lg leading-relaxed text-[var(--text-body)]">
             Everything you need to set up, configure, and get the most out of
             openvlt.
           </p>
@@ -77,31 +81,31 @@ export default function DocsIndex() {
             <Link
               key={doc.href}
               href={doc.href}
-              className="group flex items-center gap-5 rounded-xl border border-white/5 bg-white/[0.02] p-6 transition-all hover:border-white/10 hover:bg-white/[0.04]"
+              className="group flex items-center gap-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-6 transition-all hover:border-[var(--border-medium)] hover:bg-[var(--card-bg-hover)]"
             >
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/5">
-                <doc.icon className="size-5 text-stone-400" />
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-[var(--card-bg)]">
+                <doc.icon className="size-5 text-[var(--text-body)]" />
               </div>
               <div className="flex-1">
-                <p className="text-base font-semibold text-stone-200">
+                <p className="text-base font-semibold text-[var(--text-primary)]">
                   {doc.title}
                 </p>
-                <p className="mt-1 text-sm text-stone-500">
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
                   {doc.description}
                 </p>
               </div>
-              <ArrowRight className="size-4 text-stone-700 transition-colors group-hover:text-stone-400" />
+              <ArrowRight className="size-4 text-[var(--text-ghost)] transition-colors group-hover:text-[var(--text-body)]" />
             </Link>
           ))}
         </div>
 
         {/* Footer */}
-        <div className="mt-16 border-t border-white/5 pt-12">
-          <p className="text-sm text-stone-600">
+        <div className="mt-16 border-t border-[var(--border-subtle)] pt-12">
+          <p className="text-sm text-[var(--text-faint)]">
             Need help?{" "}
             <a
               href="mailto:hi@ericvaish.com"
-              className="text-stone-400 underline decoration-stone-800 underline-offset-4 transition-colors hover:text-white"
+              className="text-[var(--text-body)] underline decoration-[var(--text-ghost)] underline-offset-4 transition-colors hover:text-[var(--text-primary)]"
             >
               hi@ericvaish.com
             </a>{" "}
@@ -110,7 +114,7 @@ export default function DocsIndex() {
               href="https://github.com/ericvaish/openvlt/issues"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-stone-400 underline decoration-stone-800 underline-offset-4 transition-colors hover:text-white"
+              className="text-[var(--text-body)] underline decoration-[var(--text-ghost)] underline-offset-4 transition-colors hover:text-[var(--text-primary)]"
             >
               Open an issue on GitHub
             </a>

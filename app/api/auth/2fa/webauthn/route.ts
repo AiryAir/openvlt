@@ -10,9 +10,27 @@ import {
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server"
 import { getDb } from "@/lib/db"
+import { getConfig } from "@/lib/admin/config"
 
-const RP_ID = process.env.WEBAUTHN_RP_ID || "localhost"
-const ORIGIN = process.env.WEBAUTHN_ORIGIN || "http://localhost:3000"
+function getRpId(): string {
+  if (process.env.WEBAUTHN_RP_ID) return process.env.WEBAUTHN_RP_ID
+  const domain = getConfig("instance_domain")
+  if (domain) {
+    try {
+      return new URL(domain).hostname
+    } catch {
+      // Invalid URL, fall through
+    }
+  }
+  return "localhost"
+}
+
+function getOrigin(): string {
+  if (process.env.WEBAUTHN_ORIGIN) return process.env.WEBAUTHN_ORIGIN
+  const domain = getConfig("instance_domain")
+  if (domain) return domain
+  return "http://localhost:3456"
+}
 
 // In-memory challenge store for 2FA WebAuthn
 const challenges2FA = new Map<string, string>()
@@ -54,7 +72,7 @@ export async function POST(request: NextRequest) {
       }
 
       const options = await generateAuthenticationOptions({
-        rpID: RP_ID,
+        rpID: getRpId(),
         allowCredentials: credentials.map((c) => ({ id: c.credential_id })),
         userVerification: "preferred",
       })
@@ -98,8 +116,8 @@ export async function POST(request: NextRequest) {
       const verification = await verifyAuthenticationResponse({
         response: authResponse,
         expectedChallenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
+        expectedOrigin: getOrigin(),
+        expectedRPID: getRpId(),
         credential: {
           id: credential.credential_id,
           publicKey: Buffer.from(credential.public_key, "base64"),
@@ -131,12 +149,13 @@ export async function POST(request: NextRequest) {
 
       const userRow = db
         .prepare(
-          "SELECT id, username, display_name, created_at FROM users WHERE id = ?"
+          "SELECT id, username, display_name, is_admin, created_at FROM users WHERE id = ?"
         )
         .get(pending.userId) as {
         id: string
         username: string
         display_name: string
+        is_admin: number
         created_at: string
       }
 
@@ -145,6 +164,7 @@ export async function POST(request: NextRequest) {
           id: userRow.id,
           username: userRow.username,
           displayName: userRow.display_name,
+          isAdmin: userRow.is_admin === 1,
           createdAt: userRow.created_at,
         },
       })

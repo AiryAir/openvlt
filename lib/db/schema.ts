@@ -9,6 +9,7 @@ export function initSchema(database: Database.Database) {
       password_hash TEXT NOT NULL,
       recovery_key_hash TEXT,
       active_vault_id TEXT,
+      is_admin INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       two_factor_enabled INTEGER NOT NULL DEFAULT 0,
       two_factor_methods TEXT
@@ -373,6 +374,13 @@ export function initSchema(database: Database.Database) {
       PRIMARY KEY (synced_block_id, note_id),
       FOREIGN KEY (synced_block_id) REFERENCES synced_blocks(id) ON DELETE CASCADE,
       FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+    );
+
+    -- Instance configuration key-value store
+    CREATE TABLE IF NOT EXISTS instance_config (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `)
 }

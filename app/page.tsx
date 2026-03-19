@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowRight, UserPlus } from "lucide-react"
+import { ArrowRight, UserPlus, Settings } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -154,21 +154,43 @@ function ScrambleText({
 // ════════════════════════════════════════════════════════════════════
 export default function WelcomePage() {
   const [mounted, setMounted] = useState(false)
+  const [ready, setReady] = useState(false)
+  const [registrationOpen, setRegistrationOpen] = useState(true)
+  const [needsSetup, setNeedsSetup] = useState(false)
   const router = useRouter()
 
-  // If user is already logged in, skip landing page and go to notes
+  // Check setup status and auth
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => {
-        if (r.ok) router.replace("/notes")
-      })
-      .catch(() => {})
+    Promise.all([
+      fetch("/api/admin/setup-status").then((r) => r.json()).catch(() => null),
+      fetch("/api/auth/me").catch(() => null),
+    ]).then(([status, authRes]) => {
+      if (status && !status.setupComplete) {
+        setNeedsSetup(true)
+        setReady(true)
+        return
+      }
+      if (authRes?.ok) {
+        router.replace("/notes")
+        return
+      }
+      if (status) {
+        setRegistrationOpen(status.registrationOpen)
+      }
+      setReady(true)
+    })
   }, [router])
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 100)
     return () => clearTimeout(t)
   }, [])
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black" />
+    )
+  }
 
   return (
     <>
@@ -192,18 +214,31 @@ export default function WelcomePage() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <Link
-              href="/register"
-              className="font-mono text-xs tracking-widest text-stone-600 transition-colors hover:text-stone-300"
-            >
-              REGISTER
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-full border border-white/10 bg-white/5 px-5 py-2 font-mono text-xs tracking-widest text-stone-300 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
-            >
-              SIGN IN
-            </Link>
+            {needsSetup ? (
+              <Link
+                href="/setup"
+                className="rounded-full border border-white/10 bg-white/5 px-5 py-2 font-mono text-xs tracking-widest text-stone-300 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
+              >
+                SET UP
+              </Link>
+            ) : (
+              <>
+                {registrationOpen && (
+                  <Link
+                    href="/register"
+                    className="font-mono text-xs tracking-widest text-stone-600 transition-colors hover:text-stone-300"
+                  >
+                    REGISTER
+                  </Link>
+                )}
+                <Link
+                  href="/login"
+                  className="rounded-full border border-white/10 bg-white/5 px-5 py-2 font-mono text-xs tracking-widest text-stone-300 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
+                >
+                  SIGN IN
+                </Link>
+              </>
+            )}
           </div>
         </nav>
 
@@ -227,7 +262,7 @@ export default function WelcomePage() {
             className={`mt-6 transition-all delay-700 duration-1000 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
           >
             <p className="text-center font-mono text-sm tracking-[0.2em] text-stone-500 sm:text-base">
-              your vault is ready
+              {needsSetup ? "your vault awaits" : "your vault is ready"}
             </p>
           </div>
 
@@ -236,8 +271,11 @@ export default function WelcomePage() {
             className={`mt-4 transition-all delay-1000 duration-1000 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
           >
             <p className="max-w-sm text-center text-lg leading-relaxed text-stone-400">
-              Sign in to start writing, or create an account
-              to set up your vault.
+              {needsSetup
+                ? "Set up your instance to create your admin account, configure your vault, and start writing."
+                : registrationOpen
+                  ? "Sign in to start writing, or create an account to set up your vault."
+                  : "Sign in to start writing."}
             </p>
           </div>
 
@@ -245,20 +283,37 @@ export default function WelcomePage() {
           <div
             className={`mt-10 flex flex-col items-center gap-4 sm:flex-row sm:gap-5 transition-all delay-[1200ms] duration-1000 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
           >
-            <Link
-              href="/login"
-              className="group relative inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 font-mono text-sm font-semibold text-black transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_oklch(0.7_0.15_166/0.3)]"
-            >
-              Sign in
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-            <Link
-              href="/register"
-              className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-8 py-3.5 font-mono text-sm font-semibold text-stone-300 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
-            >
-              <UserPlus className="size-4" />
-              Create account
-            </Link>
+            {needsSetup ? (
+              <>
+                <Link
+                  href="/setup"
+                  className="group relative inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 font-mono text-sm font-semibold text-black transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_oklch(0.7_0.15_166/0.3)]"
+                >
+                  <Settings className="size-4" />
+                  Set up your instance
+                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="group relative inline-flex items-center gap-2 rounded-full bg-white px-8 py-3.5 font-mono text-sm font-semibold text-black transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_oklch(0.7_0.15_166/0.3)]"
+                >
+                  Sign in
+                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+                {registrationOpen && (
+                  <Link
+                    href="/register"
+                    className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-8 py-3.5 font-mono text-sm font-semibold text-stone-300 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
+                  >
+                    <UserPlus className="size-4" />
+                    Create account
+                  </Link>
+                )}
+              </>
+            )}
           </div>
         </div>
 

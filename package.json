@@ -74,7 +74,7 @@
     "node-cron": "^4.2.1",
     "openai": "^6.32.0",
     "otpauth": "^9.5.0",
-    "pdfjs-dist": "^5.5.207",
+    "pdfjs-dist": "4.10.38",
     "qrcode.react": "^4.2.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",

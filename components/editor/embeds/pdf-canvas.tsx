@@ -79,7 +79,6 @@ export const PdfCanvas = React.memo(function PdfCanvas({
           ctx.scale(dpr, dpr)
 
           await page.render({
-            canvas,
             canvasContext: ctx,
             viewport,
           }).promise

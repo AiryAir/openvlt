@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowRight } from "lucide-react"
 import Link from "next/link"
+import { ThemeToggle } from "./theme-toggle"
 
 // ── Interactive particle field ──────────────────────────────────────
 function ParticleField() {
@@ -162,12 +163,12 @@ export default function LandingPage() {
     <>
       <ParticleField />
 
-      <div className="relative z-10 flex h-screen flex-col bg-transparent text-white">
+      <div className="relative z-10 flex h-screen flex-col bg-transparent text-[var(--text-primary)]">
         {/* ── NAV ─────────────────────────────────────────────── */}
         <nav
           className={`flex items-center justify-between px-8 py-6 transition-all duration-1000 ${mounted ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"}`}
         >
-          <span className="font-mono text-sm tracking-widest text-stone-600">
+          <span className="font-mono text-sm tracking-widest text-[var(--text-faint)]">
             v1.0
           </span>
           <div className="flex items-center gap-8">
@@ -175,16 +176,17 @@ export default function LandingPage() {
               href="https://github.com/ericvaish/openvlt"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-xs tracking-widest text-stone-600 transition-colors hover:text-stone-300"
+              className="font-mono text-xs tracking-widest text-[var(--text-faint)] transition-colors hover:text-[var(--text-primary)]"
             >
               GITHUB
             </Link>
             <Link
               href="/docs"
-              className="font-mono text-xs tracking-widest text-stone-600 transition-colors hover:text-[oklch(0.7_0.15_166)]"
+              className="font-mono text-xs tracking-widest text-[var(--text-faint)] transition-colors hover:text-[oklch(0.7_0.15_166)]"
             >
               DOCS
             </Link>
+            <ThemeToggle />
           </div>
         </nav>
 
@@ -197,7 +199,7 @@ export default function LandingPage() {
             <h1 className="text-center text-[clamp(4rem,15vw,14rem)] leading-[0.85] font-black tracking-[-0.06em] select-none">
               <ScrambleText
                 text="openvlt"
-                className="text-white"
+                className="text-[var(--text-primary)]"
                 delay={400}
               />
             </h1>
@@ -207,7 +209,7 @@ export default function LandingPage() {
           <div
             className={`mt-6 transition-all delay-700 duration-1000 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
           >
-            <p className="text-center font-mono text-sm tracking-[0.2em] text-stone-500 sm:text-base">
+            <p className="text-center font-mono text-sm tracking-[0.2em] text-[var(--text-muted)] sm:text-base">
               open source &middot; self-hosted &middot; encrypted &middot;
               markdown
             </p>
@@ -217,7 +219,7 @@ export default function LandingPage() {
           <div
             className={`mt-4 transition-all delay-1000 duration-1000 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
           >
-            <p className="max-w-md text-center text-lg leading-relaxed text-stone-400">
+            <p className="max-w-md text-center text-lg leading-relaxed text-[var(--text-body)]">
               Your notes as plain files on your server.
               <br />
               No cloud. No subscription. No compromise.
@@ -239,7 +241,7 @@ export default function LandingPage() {
               href="https://github.com/ericvaish/openvlt"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-sm text-stone-500 underline decoration-stone-800 underline-offset-4 transition-colors hover:text-stone-300 hover:decoration-stone-500"
+              className="font-mono text-sm text-[var(--text-muted)] underline decoration-[var(--text-ghost)] underline-offset-4 transition-colors hover:text-[var(--text-primary)] hover:decoration-[var(--text-muted)]"
             >
               Learn more
             </a>
@@ -252,7 +254,7 @@ export default function LandingPage() {
           style={{ perspective: "1200px" }}
         >
           <div
-            className="overflow-hidden rounded-t-2xl border border-b-0 border-white/10 shadow-[0_-20px_60px_oklch(0.5_0.1_166/0.1)]"
+            className="overflow-hidden rounded-t-2xl border border-b-0 border-[var(--border-medium)] shadow-[0_-20px_60px_oklch(0.5_0.1_166/0.1)]"
             style={{
               transform: "rotateX(8deg)",
               transformOrigin: "bottom center",
@@ -270,23 +272,23 @@ export default function LandingPage() {
 
         {/* ── BOTTOM BAR ─────────────────────────────────────── */}
         <div
-          className={`flex items-center justify-between border-t border-white/5 px-8 py-5 transition-all delay-[1400ms] duration-1000 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
+          className={`flex items-center justify-between border-t border-[var(--border-subtle)] px-8 py-5 transition-all delay-[1400ms] duration-1000 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
         >
-          <span className="font-mono text-xs text-stone-700">
+          <span className="font-mono text-xs text-[var(--text-ghost)]">
             &copy; openvlt by{" "}
             <a
               href="https://ericvaish.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="transition-colors hover:text-stone-400"
+              className="transition-colors hover:text-[var(--text-body)]"
             >
               Eric Vaish
             </a>
           </span>
-          <div className="flex items-center gap-5 font-mono text-xs text-stone-700">
+          <div className="flex items-center gap-5 font-mono text-xs text-[var(--text-ghost)]">
             <a
               href="mailto:hi@ericvaish.com"
-              className="transition-colors hover:text-stone-400"
+              className="transition-colors hover:text-[var(--text-body)]"
             >
               hi@ericvaish.com
             </a>
@@ -294,7 +296,7 @@ export default function LandingPage() {
               href="https://github.com/ericvaish/openvlt"
               target="_blank"
               rel="noopener noreferrer"
-              className="transition-colors hover:text-stone-400"
+              className="transition-colors hover:text-[var(--text-body)]"
             >
               GitHub
             </a>

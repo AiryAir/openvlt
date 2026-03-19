@@ -185,6 +185,10 @@ export function TabContainer() {
       return
     }
     const current = window.location.pathname + window.location.search
+    // For settings, preserve /settings/[section] if already on a settings subpath
+    if (activeTabId === "__settings__" && current.startsWith("/settings/")) {
+      return
+    }
     const target = activeTabId.startsWith("__dbview_")
       ? `/notes?view=database&id=${activeTabId.slice(9, -2)}`
       : specialTabRoutes[activeTabId] ?? `/notes/${activeTabId}`

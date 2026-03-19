@@ -18,6 +18,7 @@ import {
   Info,
 } from "lucide-react"
 import Link from "next/link"
+import { ThemeToggle } from "@/app/theme-toggle"
 
 const aiCopyText = `# openvlt Self-Hosting Guide
 
@@ -170,13 +171,13 @@ function CodeBlock({ children, title }: { children: string; title?: string }) {
   }
 
   return (
-    <div className="group overflow-hidden rounded-xl border border-white/10">
+    <div className="group overflow-hidden rounded-xl border border-[var(--border-medium)]">
       {title && (
-        <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.03] px-4 py-2.5">
-          <span className="font-mono text-xs text-stone-500">{title}</span>
+        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--card-bg)] px-4 py-2.5">
+          <span className="font-mono text-xs text-[var(--text-muted)]">{title}</span>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 font-mono text-xs text-stone-600 transition-colors hover:text-stone-300"
+            className="flex items-center gap-1.5 font-mono text-xs text-[var(--text-faint)] transition-colors hover:text-[var(--text-primary)]"
           >
             {copied ? (
               <Check className="size-3" />
@@ -188,13 +189,13 @@ function CodeBlock({ children, title }: { children: string; title?: string }) {
         </div>
       )}
       <div className="relative">
-        <pre className="overflow-x-auto bg-black/30 p-4 font-mono text-sm leading-relaxed text-stone-300">
+        <pre className="overflow-x-auto bg-[var(--code-bg)] p-4 font-mono text-sm leading-relaxed text-[var(--text-primary)]">
           {children}
         </pre>
         {!title && (
           <button
             onClick={handleCopy}
-            className="absolute top-3 right-3 flex items-center gap-1.5 rounded-md bg-white/5 px-2 py-1 font-mono text-xs text-stone-600 opacity-0 transition-all hover:text-stone-300 group-hover:opacity-100"
+            className="absolute top-3 right-3 flex items-center gap-1.5 rounded-md bg-[var(--card-bg)] px-2 py-1 font-mono text-xs text-[var(--text-faint)] opacity-0 transition-all hover:text-[var(--text-primary)] group-hover:opacity-100"
           >
             {copied ? (
               <Check className="size-3" />
@@ -225,17 +226,17 @@ function Section({
   return (
     <section id={id} className="scroll-mt-24">
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-white/5">
-          <Icon className="size-4.5 text-stone-400" />
+        <div className="flex size-9 items-center justify-center rounded-lg bg-[var(--card-bg)]">
+          <Icon className="size-4.5 text-[var(--text-body)]" />
         </div>
         <h2 className="text-xl font-bold">{title}</h2>
         {badge && (
-          <span className="rounded-full bg-white/5 px-2.5 py-0.5 font-mono text-xs text-stone-500">
+          <span className="rounded-full bg-[var(--card-bg)] px-2.5 py-0.5 font-mono text-xs text-[var(--text-muted)]">
             {badge}
           </span>
         )}
       </div>
-      <div className="space-y-4 text-sm leading-relaxed text-stone-400">
+      <div className="space-y-4 text-sm leading-relaxed text-[var(--text-body)]">
         {children}
       </div>
     </section>
@@ -250,19 +251,19 @@ function Callout({
   type?: "info" | "tip" | "important"
 }) {
   const styles = {
-    info: "border-white/5 bg-white/[0.02]",
-    tip: "border-emerald-500/10 bg-emerald-500/[0.03]",
-    important: "border-amber-500/10 bg-amber-500/[0.03]",
+    info: "border-[var(--border-subtle)] bg-[var(--card-bg)]",
+    tip: "border-[var(--callout-tip-border)] bg-[var(--callout-tip-bg)]",
+    important: "border-[var(--callout-warn-border)] bg-[var(--callout-warn-bg)]",
   }
   const icons = {
-    info: <Info className="mt-0.5 size-3.5 shrink-0 text-stone-500" />,
+    info: <Info className="mt-0.5 size-3.5 shrink-0 text-[var(--text-muted)]" />,
     tip: <Zap className="mt-0.5 size-3.5 shrink-0 text-emerald-500/70" />,
     important: <Info className="mt-0.5 size-3.5 shrink-0 text-amber-500/70" />,
   }
 
   return (
     <div
-      className={`flex gap-2.5 rounded-xl border p-4 text-sm leading-relaxed text-stone-400 ${styles[type]}`}
+      className={`flex gap-2.5 rounded-xl border p-4 text-sm leading-relaxed text-[var(--text-body)] ${styles[type]}`}
     >
       {icons[type]}
       <div>{children}</div>
@@ -279,7 +280,7 @@ function Step({
 }) {
   return (
     <div className="flex gap-4">
-      <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/10 font-mono text-xs text-stone-500">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-[var(--border-medium)] font-mono text-xs text-[var(--text-muted)]">
         {number}
       </div>
       <div className="min-w-0 flex-1 pt-0.5">{children}</div>
@@ -311,43 +312,46 @@ export default function GetStarted() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-[var(--page-bg)] text-[var(--text-primary)]">
       {/* Nav */}
-      <nav className="fixed top-0 z-50 flex w-full items-center justify-between border-b border-white/5 bg-[#0a0a0a]/80 px-6 py-4 backdrop-blur-xl">
+      <nav className="fixed top-0 z-50 flex w-full items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--nav-bg)] px-6 py-4 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="flex items-center gap-2 font-mono text-sm text-stone-500 transition-colors hover:text-white"
+            className="flex items-center gap-2 font-mono text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
           >
             <ArrowLeft className="size-3.5" />
             openvlt
           </Link>
-          <span className="text-stone-800">/</span>
+          <span className="text-[var(--text-ghost)]">/</span>
           <Link
             href="/docs"
-            className="text-sm text-stone-500 transition-colors hover:text-white"
+            className="text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
           >
             Docs
           </Link>
-          <span className="text-stone-800">/</span>
+          <span className="text-[var(--text-ghost)]">/</span>
           <span className="text-sm font-medium">Get Started</span>
         </div>
-        <a
-          href="https://github.com/ericvaish/openvlt"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-sm text-stone-500 transition-colors hover:text-white"
-        >
-          GitHub
-          <ExternalLink className="size-3" />
-        </a>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <a
+            href="https://github.com/ericvaish/openvlt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+          >
+            GitHub
+            <ExternalLink className="size-3" />
+          </a>
+        </div>
       </nav>
 
       <div className="mx-auto flex max-w-6xl gap-12 px-6 pt-24 pb-24">
         {/* Sidebar nav */}
         <aside className="hidden w-52 shrink-0 lg:block">
           <div className="sticky top-24">
-            <p className="mb-4 font-mono text-xs tracking-widest text-stone-600 uppercase">
+            <p className="mb-4 font-mono text-xs tracking-widest text-[var(--text-faint)] uppercase">
               On this page
             </p>
             <nav className="space-y-1">
@@ -355,7 +359,7 @@ export default function GetStarted() {
                 <a
                   key={item.id}
                   href={`#${item.id}`}
-                  className="block rounded-lg px-3 py-1.5 text-sm text-stone-500 transition-colors hover:bg-white/5 hover:text-white"
+                  className="block rounded-lg px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--card-bg)] hover:text-[var(--text-primary)]"
                 >
                   {item.label}
                 </a>
@@ -371,7 +375,7 @@ export default function GetStarted() {
             <h1 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
               Self-Host openvlt
             </h1>
-            <p className="mb-6 max-w-xl text-lg leading-relaxed text-stone-400">
+            <p className="mb-6 max-w-xl text-lg leading-relaxed text-[var(--text-body)]">
               Get openvlt running on your own hardware in minutes. Your notes
               stay on your machine as plain markdown files. No cloud, no third
               parties, no subscriptions.
@@ -380,22 +384,22 @@ export default function GetStarted() {
             {/* Copy for AI button */}
             <button
               onClick={handleAiCopy}
-              className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm transition-all hover:border-white/20 hover:bg-white/[0.05]"
+              className="flex items-center gap-2.5 rounded-xl border border-[var(--border-medium)] bg-[var(--card-bg)] px-4 py-3 text-sm transition-all hover:border-[var(--border-medium)] hover:bg-white/[0.05]"
             >
-              <div className="flex size-7 items-center justify-center rounded-lg bg-white/5">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-[var(--card-bg)]">
                 {aiCopied ? (
                   <Check className="size-3.5 text-emerald-400" />
                 ) : (
-                  <Copy className="size-3.5 text-stone-400" />
+                  <Copy className="size-3.5 text-[var(--text-body)]" />
                 )}
               </div>
               <div className="text-left">
-                <p className="font-medium text-stone-300">
+                <p className="font-medium text-[var(--text-primary)]">
                   {aiCopied
                     ? "Copied to clipboard"
                     : "Copy install guide as text"}
                 </p>
-                <p className="text-xs text-stone-600">
+                <p className="text-xs text-[var(--text-faint)]">
                   {aiCopied
                     ? "Paste it into your AI assistant"
                     : "Paste into ChatGPT, Claude, or any AI assistant"}
@@ -414,10 +418,10 @@ export default function GetStarted() {
             ].map(([label, value]) => (
               <div
                 key={label}
-                className="rounded-xl border border-white/5 bg-white/[0.02] p-3 text-center"
+                className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-3 text-center"
               >
-                <p className="font-mono text-xs text-stone-600">{label}</p>
-                <p className="mt-1 text-sm font-medium text-stone-300">
+                <p className="font-mono text-xs text-[var(--text-faint)]">{label}</p>
+                <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">
                   {value}
                 </p>
               </div>
@@ -436,7 +440,7 @@ export default function GetStarted() {
             </CodeBlock>
 
             <div className="space-y-3 pt-2">
-              <p className="text-sm font-medium text-stone-300">
+              <p className="text-sm font-medium text-[var(--text-primary)]">
                 What the script does:
               </p>
               <div className="space-y-2.5">
@@ -448,7 +452,7 @@ export default function GetStarted() {
                 <Step number={2}>
                   <p>
                     Clones the repo to{" "}
-                    <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+                    <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                       ~/.openvlt/app/
                     </code>{" "}
                     and builds the application
@@ -457,9 +461,9 @@ export default function GetStarted() {
                 <Step number={3}>
                   <p>
                     Starts the server on port{" "}
-                    <strong className="text-stone-300">3456</strong> via pm2
+                    <strong className="text-[var(--text-primary)]">3456</strong> via pm2
                     and sets up the{" "}
-                    <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+                    <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                       openvlt
                     </code>{" "}
                     CLI command
@@ -470,7 +474,7 @@ export default function GetStarted() {
 
             <Callout type="tip">
               Once complete, open{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 http://localhost:3456
               </code>{" "}
               to create your account.
@@ -482,7 +486,7 @@ export default function GetStarted() {
             <p>
               Best for VPS and server deployments. The image uses a multi-stage
               build with{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 node:22-alpine
               </code>{" "}
               and runs as a non-root user.
@@ -517,7 +521,7 @@ docker run -d -p 3456:3456 -v openvlt_data:/app/data openvlt`}
 
             <Callout type="important">
               The{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 ./data
               </code>{" "}
               volume is critical. It contains your vault files and database.
@@ -541,7 +545,7 @@ bun run start`}
 
             <p>
               The server starts on port 3456 by default. Set the{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 PORT
               </code>{" "}
               environment variable to change it. For production, use pm2 to
@@ -562,7 +566,7 @@ pm2 save`}
           <Section id="cli" icon={Terminal} title="CLI Commands">
             <p>
               If you used the quick install script, the{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 openvlt
               </code>{" "}
               CLI is available globally.
@@ -591,19 +595,19 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 text-left">
-                    <th className="py-3 pr-4 font-mono text-xs font-medium text-stone-300">
+                  <tr className="border-b border-[var(--border-medium)] text-left">
+                    <th className="py-3 pr-4 font-mono text-xs font-medium text-[var(--text-primary)]">
                       Variable
                     </th>
-                    <th className="py-3 pr-4 font-medium text-stone-300">
+                    <th className="py-3 pr-4 font-medium text-[var(--text-primary)]">
                       Default
                     </th>
-                    <th className="py-3 font-medium text-stone-300">
+                    <th className="py-3 font-medium text-[var(--text-primary)]">
                       Description
                     </th>
                   </tr>
                 </thead>
-                <tbody className="text-stone-500">
+                <tbody className="text-[var(--text-muted)]">
                   {[
                     ["PORT", "3456", "Server listening port"],
                     ["HOSTNAME", "0.0.0.0", "Bind address"],
@@ -628,8 +632,8 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
                       "Set to production for deployments",
                     ],
                   ].map(([variable, def, desc]) => (
-                    <tr key={variable} className="border-b border-white/5">
-                      <td className="py-3 pr-4 font-mono text-xs text-stone-300">
+                    <tr key={variable} className="border-b border-[var(--border-subtle)]">
+                      <td className="py-3 pr-4 font-mono text-xs text-[var(--text-primary)]">
                         {variable}
                       </td>
                       <td className="py-3 pr-4 font-mono text-xs">{def}</td>
@@ -642,19 +646,19 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
 
             <Callout type="info">
               For WebAuthn (biometric login) to work in production, set{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 WEBAUTHN_ORIGIN
               </code>{" "}
               to your full URL (e.g.{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 https://notes.example.com
               </code>
               ) and{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 WEBAUTHN_RP_ID
               </code>{" "}
               to your domain (e.g.{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 notes.example.com
               </code>
               ).
@@ -669,7 +673,7 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
           >
             <p>
               All user data lives in the{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 data/
               </code>{" "}
               directory. Notes are plain markdown files. You can browse, edit,
@@ -713,10 +717,10 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
               ].map(([title, desc]) => (
                 <div
                   key={title}
-                  className="rounded-xl border border-white/5 bg-white/[0.02] p-3"
+                  className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-3"
                 >
-                  <p className="text-sm font-medium text-stone-300">{title}</p>
-                  <p className="mt-0.5 text-xs text-stone-500">{desc}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{title}</p>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">{desc}</p>
                 </div>
               ))}
             </div>
@@ -729,13 +733,13 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
             </p>
 
             <div className="space-y-3">
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                <p className="mb-1 text-sm font-medium text-stone-300">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-4">
+                <p className="mb-1 text-sm font-medium text-[var(--text-primary)]">
                   User Isolation
                 </p>
                 <p>
                   Each user&apos;s files are scoped to{" "}
-                  <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+                  <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                     data/vault/{"{userId}"}/
                   </code>
                   . The service layer enforces directory boundaries. Users
@@ -743,8 +747,8 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                <p className="mb-1 text-sm font-medium text-stone-300">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-4">
+                <p className="mb-1 text-sm font-medium text-[var(--text-primary)]">
                   Authentication
                 </p>
                 <p>
@@ -755,8 +759,8 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                <p className="mb-1 text-sm font-medium text-stone-300">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-4">
+                <p className="mb-1 text-sm font-medium text-[var(--text-primary)]">
                   End-to-End Encryption
                 </p>
                 <p>
@@ -766,13 +770,13 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                <p className="mb-1 text-sm font-medium text-stone-300">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-4">
+                <p className="mb-1 text-sm font-medium text-[var(--text-primary)]">
                   Docker
                 </p>
                 <p>
                   The container runs as a non-root user (
-                  <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+                  <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                     UID 1001
                   </code>
                   ) with minimal permissions.
@@ -818,11 +822,11 @@ openvlt uninstall          # Remove openvlt (keeps your data)`}
 
             <Callout type="info">
               Set{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 WEBAUTHN_ORIGIN
               </code>{" "}
               and{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 WEBAUTHN_RP_ID
               </code>{" "}
               to match your domain when using a reverse proxy.
@@ -846,7 +850,7 @@ rsync -av data/vault/ /path/to/backup/vault/`}
 
             <Callout type="tip">
               You can also use git, Syncthing, or any file sync tool on the{" "}
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-stone-300">
+              <code className="rounded bg-[var(--card-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--text-primary)]">
                 data/vault/
               </code>{" "}
               directory since it&apos;s just markdown files.
@@ -856,27 +860,27 @@ rsync -av data/vault/ /path/to/backup/vault/`}
           {/* Updating */}
           <Section id="updating" icon={Settings} title="Updating">
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                <p className="mb-2 text-sm font-medium text-stone-300">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-4">
+                <p className="mb-2 text-sm font-medium text-[var(--text-primary)]">
                   Quick Install
                 </p>
-                <code className="font-mono text-xs text-stone-400">
+                <code className="font-mono text-xs text-[var(--text-body)]">
                   openvlt update
                 </code>
               </div>
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                <p className="mb-2 text-sm font-medium text-stone-300">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-4">
+                <p className="mb-2 text-sm font-medium text-[var(--text-primary)]">
                   Docker
                 </p>
-                <code className="font-mono text-xs text-stone-400">
+                <code className="font-mono text-xs text-[var(--text-body)]">
                   git pull && docker compose up -d --build
                 </code>
               </div>
-              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                <p className="mb-2 text-sm font-medium text-stone-300">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--card-bg)] p-4">
+                <p className="mb-2 text-sm font-medium text-[var(--text-primary)]">
                   Manual
                 </p>
-                <code className="font-mono text-xs text-stone-400">
+                <code className="font-mono text-xs text-[var(--text-body)]">
                   git pull && bun install && bun run build
                 </code>
               </div>
@@ -889,12 +893,12 @@ rsync -av data/vault/ /path/to/backup/vault/`}
           </Section>
 
           {/* Footer */}
-          <div className="border-t border-white/5 pt-12">
-            <p className="text-sm text-stone-600">
+          <div className="border-t border-[var(--border-subtle)] pt-12">
+            <p className="text-sm text-[var(--text-faint)]">
               Need help?{" "}
               <a
                 href="mailto:hi@ericvaish.com"
-                className="text-stone-400 underline decoration-stone-800 underline-offset-4 transition-colors hover:text-white"
+                className="text-[var(--text-body)] underline decoration-[var(--text-ghost)] underline-offset-4 transition-colors hover:text-[var(--text-primary)]"
               >
                 hi@ericvaish.com
               </a>{" "}
@@ -903,7 +907,7 @@ rsync -av data/vault/ /path/to/backup/vault/`}
                 href="https://github.com/ericvaish/openvlt/issues"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-stone-400 underline decoration-stone-800 underline-offset-4 transition-colors hover:text-white"
+                className="text-[var(--text-body)] underline decoration-[var(--text-ghost)] underline-offset-4 transition-colors hover:text-[var(--text-primary)]"
               >
                 Open an issue on GitHub
               </a>

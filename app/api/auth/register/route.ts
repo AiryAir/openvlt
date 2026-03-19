@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUser } from "@/lib/auth/service"
+import { isSetupComplete, isRegistrationOpen } from "@/lib/admin/config"
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isSetupComplete()) {
+      return NextResponse.json(
+        { error: "Setup required. Visit /setup to configure your instance." },
+        { status: 403 }
+      )
+    }
+
+    if (!isRegistrationOpen()) {
+      return NextResponse.json(
+        { error: "Registration is disabled. Contact your administrator." },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { username, password, displayName } = body
 

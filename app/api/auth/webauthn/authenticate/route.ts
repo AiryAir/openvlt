@@ -34,11 +34,13 @@ export async function POST(request: NextRequest) {
       // Create session (same as password login)
       const db = getDb()
       const user = db
-        .prepare("SELECT id, username, display_name FROM users WHERE id = ?")
+        .prepare("SELECT id, username, display_name, is_admin, created_at FROM users WHERE id = ?")
         .get(body.userId) as {
         id: string
         username: string
         display_name: string
+        is_admin: number
+        created_at: string
       }
 
       const session = createSession(user.id)
@@ -48,6 +50,8 @@ export async function POST(request: NextRequest) {
           id: user.id,
           username: user.username,
           displayName: user.display_name,
+          isAdmin: user.is_admin === 1,
+          createdAt: user.created_at,
         },
       })
 
