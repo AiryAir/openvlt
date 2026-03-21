@@ -142,11 +142,28 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
     (editor: any) => {
       editorRef.current = editor
 
+      // Force light theme on tldraw to prevent dark background flash
+      try {
+        editor.setDarkMode(false)
+      } catch {
+        // setDarkMode may not exist in all tldraw versions
+        try {
+          editor.updateInstanceState({ isDarkMode: false })
+        } catch {}
+      }
+
       // Enable grid so our custom background component renders
       editor.updateInstanceState({ isGridMode: true })
 
       // Default to handwrite tool — low smoothing for natural handwriting
       editor.setCurrentTool("handwrite")
+
+      // Re-assert handwrite tool after a frame to handle iPad Safari re-mount races
+      requestAnimationFrame(() => {
+        if (editor.getCurrentToolId() !== "handwrite") {
+          editor.setCurrentTool("handwrite")
+        }
+      })
 
       // Apply saved stroke defaults to tldraw style state
       try {
@@ -916,7 +933,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
   )
 
   return (
-    <div className="relative flex flex-1 flex-col canvas-editor-wrapper">
+    <div className="relative flex flex-1 flex-col canvas-editor-wrapper" style={{ background: "#f0f0f0" }}>
       {/* Text note style bar — rendered outside tldraw so events work */}
       {selectedTextNote && (
         <div
@@ -1273,6 +1290,16 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
         </div>
       )}
       <style jsx global>{`
+        /* Force tldraw canvas to light mode to prevent black flash on dark-mode iPads */
+        .canvas-editor-wrapper .tl-container {
+          background: #f0f0f0 !important;
+        }
+        .canvas-editor-wrapper [data-color-mode="dark"] .tl-background {
+          background: #f0f0f0 !important;
+        }
+        .canvas-editor-wrapper .tl-background {
+          background: #f0f0f0 !important;
+        }
         .canvas-editor-wrapper .tl-shape[data-shape-type="handwrite"] {
           background: none !important;
           box-shadow: none !important;
