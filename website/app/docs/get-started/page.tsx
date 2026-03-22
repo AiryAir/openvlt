@@ -189,7 +189,7 @@ function CodeBlock({ children, title }: { children: string; title?: string }) {
         </div>
       )}
       <div className="relative">
-        <pre className="overflow-x-auto bg-[var(--code-bg)] p-4 font-mono text-sm leading-relaxed text-[var(--text-primary)]">
+        <pre className="overflow-x-auto bg-[var(--code-bg)] p-4 font-mono text-sm leading-normal text-[var(--text-primary)]">
           {children}
         </pre>
         {!title && (
