@@ -1866,55 +1866,33 @@ export function SettingsPanel() {
                       onClick={async () => {
                         setPairingLoading(true)
                         try {
-                          const loginRes = await fetch(
-                            `${pairUrl}/api/auth/login`,
+                          const res = await fetch(
+                            "/api/sync/pair/initiate",
                             {
                               method: "POST",
                               headers: {
                                 "Content-Type": "application/json",
                               },
                               body: JSON.stringify({
+                                remoteUrl: pairUrl,
                                 username: pairUsername,
                                 password: pairPassword,
                               }),
-                              credentials: "include",
                             }
                           )
-                          if (!loginRes.ok) {
-                            alert(
-                              "Failed to authenticate with remote instance"
-                            )
+                          const data = await res.json()
+                          if (!res.ok) {
+                            alert(data.error || "Pairing failed")
                             return
                           }
-                          const reqRes = await fetch(
-                            `${pairUrl}/api/sync/pair/request`,
-                            {
-                              method: "POST",
-                              headers: {
-                                "Content-Type": "application/json",
-                              },
-                              body: JSON.stringify({
-                                peerName:
-                                  syncPeer?.displayName || "Unknown",
-                                peerId: syncPeer?.id || "",
-                                vaultName: "Vault",
-                              }),
-                              credentials: "include",
-                            }
-                          )
-                          if (!reqRes.ok) {
-                            alert("Pairing request failed")
-                            return
-                          }
-                          const { pairingId } = await reqRes.json()
                           alert(
-                            `Pairing established! ID: ${pairingId.slice(0, 8)}...`
+                            `Pairing established! ID: ${data.pairingId.slice(0, 8)}...`
                           )
                           const settingsRes =
                             await fetch("/api/sync/settings")
                           if (settingsRes.ok) {
-                            const data = await settingsRes.json()
-                            setSyncPairings(data.pairings)
+                            const settingsData = await settingsRes.json()
+                            setSyncPairings(settingsData.pairings)
                           }
                           setPairUrl("")
                           setPairUsername("")
