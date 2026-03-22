@@ -64,9 +64,13 @@ export async function uploadAndInsert(
       continue
     }
     try {
+      toast.loading(`Uploading ${file.name}...`, { id: `upload-${file.name}` })
       const result = await uploadFile(noteId, file)
+      toast.dismiss(`upload-${file.name}`)
       insertAttachment(editor, result)
     } catch (e) {
+      toast.dismiss(`upload-${file.name}`)
+      toast.error(`Upload failed: ${e instanceof Error ? e.message : "Unknown error"}`)
       console.error("Attachment upload failed:", e)
     }
   }

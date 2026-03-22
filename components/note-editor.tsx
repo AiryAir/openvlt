@@ -309,6 +309,16 @@ export function NoteEditor({
         const files = event.dataTransfer?.files
         if (files?.length && editorRef.current) {
           event.preventDefault()
+          // Set cursor to drop position so attachment inserts at the right place
+          const coords = { left: event.clientX, top: event.clientY }
+          const pos = view.posAtCoords(coords)
+          if (pos) {
+            const { Selection } = require("@tiptap/pm/state") as typeof import("@tiptap/pm/state")
+            const resolved = view.state.doc.resolve(pos.pos)
+            view.dispatch(
+              view.state.tr.setSelection(Selection.near(resolved))
+            )
+          }
           uploadAndInsert(editorRef.current, noteId, files)
           return true
         }
