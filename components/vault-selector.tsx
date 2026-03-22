@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { useTabStore } from "@/lib/stores/tab-store"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ interface VaultSelectorProps {
 
 export function VaultSelector({ onVaultChange }: VaultSelectorProps) {
   const router = useRouter()
+  const { closeAllTabs } = useTabStore()
   const [vaults, setVaults] = React.useState<Vault[]>([])
   const [createOpen, setCreateOpen] = React.useState(false)
   const [manageOpen, setManageOpen] = React.useState(false)
@@ -65,6 +67,7 @@ export function VaultSelector({ onVaultChange }: VaultSelectorProps) {
         body: JSON.stringify({ action: "setActive" }),
       })
       if (res.ok) {
+        closeAllTabs()
         await fetchVaults()
         onVaultChange?.()
         router.push("/notes")

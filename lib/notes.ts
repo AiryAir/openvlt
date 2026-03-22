@@ -105,6 +105,7 @@ export function createNote(
   const vaultRoot = getVaultPath(vaultId)
 
   let dirPath = vaultRoot
+  let folderPrefix: string | null = null
   if (parentId) {
     const folder = db
       .prepare(
@@ -113,21 +114,13 @@ export function createNote(
       .get(parentId, userId, vaultId) as { path: string } | undefined
     if (folder) {
       dirPath = safeResolvePath(vaultRoot, folder.path)
+      folderPrefix = folder.path
     }
   }
 
   fs.mkdirSync(dirPath, { recursive: true })
 
   let safeTitle = title.replace(/[<>:"/\\|?*]/g, "_")
-  const folderPrefix = parentId
-    ? (
-        db
-          .prepare(
-            "SELECT path FROM folders WHERE id = ? AND user_id = ? AND vault_id = ?"
-          )
-          .get(parentId, userId, vaultId) as { path: string }
-      ).path
-    : null
 
   // Determine file extension and note type based on title or explicit noteType
   const isExcalidraw = safeTitle.endsWith(".excalidraw") || noteType === "excalidraw"

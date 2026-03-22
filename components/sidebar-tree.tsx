@@ -672,7 +672,7 @@ function TreeItem({
   }
 
   async function handleCreateDrawing(folderId: string) {
-    const title = await promptDialog({ title: "New drawing", description: "Drawing name:", defaultValue: "Untitled" })
+    const title = await promptDialog({ title: "New Excalidraw", description: "Name:", defaultValue: "Untitled" })
     if (!title?.trim()) return
     try {
       const res = await fetch("/api/notes", {
@@ -946,7 +946,7 @@ function TreeItem({
       </ContextMenuItem>
       <ContextMenuItem onClick={() => handleCreateDrawing(node.id)}>
         <PenLineIcon className="mr-2 size-4" />
-        New drawing
+        New Excalidraw
       </ContextMenuItem>
       <ContextMenuItem onClick={() => handleCreateCanvas(node.id)}>
         <PenLineIcon className="mr-2 size-4" />
