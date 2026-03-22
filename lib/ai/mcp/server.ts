@@ -72,7 +72,8 @@ export async function startMcpServer() {
   for (const def of toolDefs) {
     const zodShape = jsonSchemaToZod(def.parameters)
 
-    server.tool(def.name, def.description, zodShape, async (params) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(server.tool as any)(def.name, def.description, zodShape, async (params: Record<string, unknown>) => {
       const result = await executeTool(
         def.name,
         params as Record<string, unknown>,
