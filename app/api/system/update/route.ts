@@ -42,7 +42,7 @@ export async function POST() {
 
     try {
       logs.push("Pulling latest changes...")
-      execSync("git pull --ff-only origin main", {
+      execSync("git pull --rebase origin main", {
         cwd: appDir,
         encoding: "utf-8",
         timeout: 30000,
