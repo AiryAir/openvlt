@@ -763,6 +763,7 @@ body {
   overflow-x: auto;
   overflow-y: hidden;
   margin: 2em 0;
+  max-width: 100%;
   -webkit-overflow-scrolling: touch;
 }
 
