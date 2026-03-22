@@ -632,7 +632,7 @@ function TreeItem({
   // ── Actions ──
 
   async function handleCreateSiblingNote() {
-    const title = await promptDialog({ title: "New note", description: "Note title:" })
+    const title = await promptDialog({ title: "New note", description: "Note title:", suffix: ".md" })
     if (!title?.trim()) return
     try {
       const res = await fetch("/api/notes", {
@@ -654,7 +654,7 @@ function TreeItem({
   }
 
   async function handleCreateNote(folderId: string) {
-    const title = await promptDialog({ title: "New note", description: "Note title:" })
+    const title = await promptDialog({ title: "New note", description: "Note title:", suffix: ".md" })
     if (!title?.trim()) return
     try {
       const res = await fetch("/api/notes", {

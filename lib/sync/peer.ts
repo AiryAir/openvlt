@@ -309,3 +309,118 @@ export function updateSyncCursor(
     "UPDATE sync_pairings SET last_sync_at = ? WHERE id = ?"
   ).run(now, pairingId)
 }
+
+// ── Pairing codes (Bluetooth-style) ──
+
+const PAIRING_CODE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const MAX_ATTEMPTS = 5
+const LOCKOUT_MS = 15 * 60 * 1000 // 15 minutes
+
+/**
+ * Generate a 6-digit pairing code for this vault.
+ * Invalidates any existing unused codes for the same vault.
+ */
+export function generatePairingCode(vaultId: string): {
+  code: string
+  expiresAt: string
+} {
+  const db = getDb()
+
+  // Invalidate existing unused codes for this vault
+  db.prepare(
+    "DELETE FROM pairing_codes WHERE vault_id = ? AND redeemed_at IS NULL"
+  ).run(vaultId)
+
+  const id = uuid()
+  const code = String(crypto.randomInt(100000, 999999))
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + PAIRING_CODE_TTL_MS)
+
+  db.prepare(
+    `INSERT INTO pairing_codes (id, code, vault_id, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?)`
+  ).run(id, code, vaultId, now.toISOString(), expiresAt.toISOString())
+
+  return { code, expiresAt: expiresAt.toISOString() }
+}
+
+/**
+ * Redeem a pairing code. Returns pairing info if valid, null if invalid/expired.
+ */
+export function redeemPairingCode(
+  code: string,
+  remotePeerId: string,
+  remoteUrl: string
+): {
+  pairingId: string
+  sharedSecret: string
+  localPeerId: string
+  localPeerName: string
+} | null {
+  const db = getDb()
+  const now = new Date().toISOString()
+
+  const row = db
+    .prepare(
+      `SELECT id, vault_id, expires_at FROM pairing_codes
+       WHERE code = ? AND redeemed_at IS NULL AND expires_at > ?`
+    )
+    .get(code, now) as
+    | { id: string; vault_id: string; expires_at: string }
+    | undefined
+
+  if (!row) return null
+
+  // Mark as redeemed
+  db.prepare("UPDATE pairing_codes SET redeemed_at = ? WHERE id = ?").run(
+    now,
+    row.id
+  )
+
+  // Create the pairing
+  const { pairingId, sharedSecret } = createPairing(
+    row.vault_id,
+    remotePeerId,
+    remoteUrl
+  )
+
+  const localPeer = getLocalPeer()
+
+  return {
+    pairingId,
+    sharedSecret,
+    localPeerId: localPeer.id,
+    localPeerName: localPeer.displayName,
+  }
+}
+
+/**
+ * Check if an IP is rate-limited for pairing code attempts.
+ */
+export function checkPairingCodeRateLimit(ipAddress: string): boolean {
+  const db = getDb()
+  const cutoff = new Date(Date.now() - LOCKOUT_MS).toISOString()
+
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) as count FROM pairing_code_attempts
+       WHERE ip_address = ? AND attempted_at > ? AND success = 0`
+    )
+    .get(ipAddress, cutoff) as { count: number }
+
+  return row.count < MAX_ATTEMPTS
+}
+
+/**
+ * Record a pairing code attempt.
+ */
+export function recordPairingCodeAttempt(
+  ipAddress: string,
+  success: boolean
+): void {
+  const db = getDb()
+  db.prepare(
+    `INSERT INTO pairing_code_attempts (id, ip_address, attempted_at, success)
+     VALUES (?, ?, ?, ?)`
+  ).run(uuid(), ipAddress, new Date().toISOString(), success ? 1 : 0)
+}

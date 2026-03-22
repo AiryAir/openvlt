@@ -191,8 +191,8 @@ export function EditorToolbar({ editor, noteId }: EditorToolbarProps) {
           <FileCodeIcon className="size-4" />
         </Toggle>
       </Tip>
-      <Tip label="Horizontal Rule">
-        <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => editor.chain().focus().setHorizontalRule().run()} onMouseDown={(e) => e.preventDefault()}>
+      <Tip label={editor.isActive("table") ? "Not allowed in tables" : "Horizontal Rule"}>
+        <Toggle size="sm" variant="outline" pressed={false} disabled={editor.isActive("table")} onPressedChange={() => editor.chain().focus().setHorizontalRule().run()} onMouseDown={(e) => e.preventDefault()}>
           <MinusIcon className="size-4" />
         </Toggle>
       </Tip>
@@ -200,8 +200,8 @@ export function EditorToolbar({ editor, noteId }: EditorToolbarProps) {
       <ToolbarSeparator />
 
       {/* Table, Link, Image, Attach */}
-      <Tip label="Insert Table">
-        <Toggle size="sm" variant="outline" pressed={false} onPressedChange={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} onMouseDown={(e) => e.preventDefault()}>
+      <Tip label={editor.isActive("table") ? "Cannot nest tables" : "Insert Table"}>
+        <Toggle size="sm" variant="outline" pressed={false} disabled={editor.isActive("table")} onPressedChange={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} onMouseDown={(e) => e.preventDefault()}>
           <TableIcon className="size-4" />
         </Toggle>
       </Tip>

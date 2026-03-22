@@ -919,6 +919,32 @@ const migrations: Migration[] = [
       `)
     },
   },
+  {
+    version: 21,
+    description: "Add pairing codes for Bluetooth-style peer sync",
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS pairing_codes (
+          id TEXT PRIMARY KEY,
+          code TEXT NOT NULL,
+          vault_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          redeemed_at TEXT,
+          FOREIGN KEY (vault_id) REFERENCES vaults(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_pairing_codes_code ON pairing_codes(code);
+
+        CREATE TABLE IF NOT EXISTS pairing_code_attempts (
+          id TEXT PRIMARY KEY,
+          ip_address TEXT NOT NULL,
+          attempted_at TEXT NOT NULL DEFAULT (datetime('now')),
+          success INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_pairing_code_attempts_ip ON pairing_code_attempts(ip_address, attempted_at);
+      `)
+    },
+  },
 ]
 
 export function runMigrations(db: Database.Database) {

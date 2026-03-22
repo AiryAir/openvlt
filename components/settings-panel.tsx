@@ -33,6 +33,7 @@ import {
   FingerprintIcon,
   CopyIcon,
   SparklesIcon,
+  KeyRoundIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -534,9 +535,31 @@ export function SettingsPanel() {
   } | null>(null)
   const [syncPairings, setSyncPairings] = React.useState<SyncPairing[]>([])
   const [pairUrl, setPairUrl] = React.useState("")
-  const [pairUsername, setPairUsername] = React.useState("")
-  const [pairPassword, setPairPassword] = React.useState("")
+  const [pairCode, setPairCode] = React.useState("")
   const [pairingLoading, setPairingLoading] = React.useState(false)
+  const [generatedCode, setGeneratedCode] = React.useState<string | null>(null)
+  const [codeExpiresAt, setCodeExpiresAt] = React.useState<string | null>(null)
+  const [codeCountdown, setCodeCountdown] = React.useState(0)
+  const [generatingCode, setGeneratingCode] = React.useState(false)
+
+  // Countdown timer for pairing code
+  React.useEffect(() => {
+    if (!codeExpiresAt) return
+    const tick = () => {
+      const remaining = Math.max(
+        0,
+        Math.floor((new Date(codeExpiresAt).getTime() - Date.now()) / 1000)
+      )
+      setCodeCountdown(remaining)
+      if (remaining <= 0) {
+        setGeneratedCode(null)
+        setCodeExpiresAt(null)
+      }
+    }
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [codeExpiresAt])
 
   React.useEffect(() => {
     fetch("/api/auth/me")
@@ -1822,13 +1845,68 @@ export function SettingsPanel() {
                     </div>
                   )}
 
+                  {/* Generate pairing code (for incoming connections) */}
                   <div className="space-y-3 border-t pt-3">
                     <p className="text-sm font-medium">
-                      Pair with another instance
+                      Allow another instance to connect
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Enter the URL and credentials of the remote openvlt
-                      instance to sync with.
+                      Generate a pairing code and share it with the other
+                      instance. The code expires after 5 minutes.
+                    </p>
+
+                    {generatedCode ? (
+                      <div className="flex flex-col items-center gap-2 rounded-lg border bg-muted/50 p-4">
+                        <p className="text-xs text-muted-foreground">
+                          Pairing code
+                        </p>
+                        <p className="font-mono text-3xl font-bold tracking-[0.3em]">
+                          {generatedCode}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Expires in{" "}
+                          {Math.floor(codeCountdown / 60)}:{String(codeCountdown % 60).padStart(2, "0")}
+                        </p>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={generatingCode}
+                        onClick={async () => {
+                          setGeneratingCode(true)
+                          try {
+                            const res = await fetch(
+                              "/api/sync/pair/code/generate",
+                              { method: "POST" }
+                            )
+                            if (res.ok) {
+                              const data = await res.json()
+                              setGeneratedCode(data.code)
+                              setCodeExpiresAt(data.expiresAt)
+                            }
+                          } catch {} finally {
+                            setGeneratingCode(false)
+                          }
+                        }}
+                      >
+                        {generatingCode ? (
+                          <LoaderIcon className="mr-2 size-3.5 animate-spin" />
+                        ) : (
+                          <KeyRoundIcon className="mr-2 size-3.5" />
+                        )}
+                        Generate Pairing Code
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Connect to another instance (outgoing) */}
+                  <div className="space-y-3 border-t pt-3">
+                    <p className="text-sm font-medium">
+                      Connect to another instance
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Enter the URL and pairing code from the remote instance.
                     </p>
                     <div className="space-y-2">
                       <input
@@ -1838,36 +1916,30 @@ export function SettingsPanel() {
                         placeholder="https://notes.example.com"
                         className="h-9 w-full rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                       />
-                      <div className="flex flex-col gap-2 sm:flex-row">
-                        <input
-                          type="text"
-                          value={pairUsername}
-                          onChange={(e) => setPairUsername(e.target.value)}
-                          placeholder="Username on remote"
-                          className="h-9 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-                        />
-                        <input
-                          type="password"
-                          value={pairPassword}
-                          onChange={(e) => setPairPassword(e.target.value)}
-                          placeholder="Password on remote"
-                          className="h-9 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={pairCode}
+                        onChange={(e) =>
+                          setPairCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                        }
+                        placeholder="6-digit pairing code"
+                        className="h-9 w-full rounded-md border bg-background px-3 font-mono text-sm tracking-widest placeholder:font-sans placeholder:tracking-normal placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                      />
                     </div>
                     <Button
                       size="sm"
                       disabled={
                         !pairUrl ||
-                        !pairUsername ||
-                        !pairPassword ||
+                        pairCode.length !== 6 ||
                         pairingLoading
                       }
                       onClick={async () => {
                         setPairingLoading(true)
                         try {
                           const res = await fetch(
-                            "/api/sync/pair/initiate",
+                            "/api/sync/pair/code/initiate",
                             {
                               method: "POST",
                               headers: {
@@ -1875,8 +1947,7 @@ export function SettingsPanel() {
                               },
                               body: JSON.stringify({
                                 remoteUrl: pairUrl,
-                                username: pairUsername,
-                                password: pairPassword,
+                                code: pairCode,
                               }),
                             }
                           )
@@ -1886,7 +1957,7 @@ export function SettingsPanel() {
                             return
                           }
                           alert(
-                            `Pairing established! ID: ${data.pairingId.slice(0, 8)}...`
+                            `Paired with ${data.remotePeerName || "remote instance"}!`
                           )
                           const settingsRes =
                             await fetch("/api/sync/settings")
@@ -1895,8 +1966,7 @@ export function SettingsPanel() {
                             setSyncPairings(settingsData.pairings)
                           }
                           setPairUrl("")
-                          setPairUsername("")
-                          setPairPassword("")
+                          setPairCode("")
                         } catch (err) {
                           alert(
                             `Failed to pair: ${err instanceof Error ? err.message : "Unknown error"}`
@@ -1911,7 +1981,7 @@ export function SettingsPanel() {
                       ) : (
                         <RefreshCwIcon className="mr-2 size-3.5" />
                       )}
-                      Start Pairing
+                      Pair
                     </Button>
                   </div>
                 </div>

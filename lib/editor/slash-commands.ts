@@ -86,6 +86,7 @@ const COMMANDS: SlashCommandItem[] = [
     description: "Insert a table",
     icon: "⊞",
     command: (editor, range) => {
+      if (editor.isActive("table")) return
       editor
         .chain()
         .focus()
@@ -99,6 +100,7 @@ const COMMANDS: SlashCommandItem[] = [
     description: "Divider line",
     icon: "—",
     command: (editor, range) => {
+      if (editor.isActive("table")) return
       editor.chain().focus().deleteRange(range).setHorizontalRule().run()
     },
   },

@@ -120,6 +120,8 @@ interface PromptOptions {
   confirmLabel?: string
   cancelLabel?: string
   type?: string
+  /** Fixed suffix shown after the input (e.g. ".md"). Not included in the returned value. */
+  suffix?: string
   /** Return an error string to show below the input, or null/undefined if valid. */
   validate?: (value: string) => string | null | undefined
 }
@@ -188,15 +190,34 @@ export function promptDialog(
                 handleSubmit()
               }}
             >
-              <Input
-                ref={inputRef}
-                type={opts.type || "text"}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={opts.placeholder}
-                className={validationError ? "mb-1" : "mb-4"}
-                autoFocus
-              />
+              {opts.suffix ? (
+                <div
+                  className={`flex items-center rounded-lg border border-input bg-transparent focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30 ${validationError ? "mb-1" : "mb-4"}`}
+                >
+                  <input
+                    ref={inputRef}
+                    type={opts.type || "text"}
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder={opts.placeholder}
+                    className="h-8 min-w-0 flex-1 rounded-lg bg-transparent px-2.5 py-1 text-base outline-none placeholder:text-muted-foreground md:text-sm"
+                    autoFocus
+                  />
+                  <span className="pointer-events-none select-none pr-2.5 text-muted-foreground md:text-sm">
+                    {opts.suffix}
+                  </span>
+                </div>
+              ) : (
+                <Input
+                  ref={inputRef}
+                  type={opts.type || "text"}
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder={opts.placeholder}
+                  className={validationError ? "mb-1" : "mb-4"}
+                  autoFocus
+                />
+              )}
               {validationError && (
                 <p className="mb-3 text-sm text-destructive">{validationError}</p>
               )}
