@@ -123,7 +123,7 @@ export function SettingsPanel() {
 
   // Read active settings section from URL pathname (/settings/ai, /settings/data, etc.)
   const pathname = usePathname()
-  const validTabs = ["general", "account", "data", "sync", "shortcuts", "ai", "appearance", "about"]
+  const validTabs = ["general", "account", "data", "sync", "shortcuts", "ai", "appearance", "about", "update"]
   const sectionFromPath = React.useMemo(() => {
     // Extract section from /settings/[section] — also handle legacy #hash
     const segments = pathname.split("/")
