@@ -177,10 +177,13 @@ cmd_update() {
   fi
 
   echo -e "${DIM}Pulling $behind new commits...${NC}"
-  git pull --ff-only origin main
+  git pull --rebase origin main
 
   echo -e "${DIM}Installing dependencies...${NC}"
   bun install
+
+  echo -e "${DIM}Cleaning build cache...${NC}"
+  rm -rf .next
 
   echo -e "${DIM}Building...${NC}"
   bun run build
@@ -190,6 +193,12 @@ cmd_update() {
     cp -r .next/standalone/* .
     cp -r .next/static .next/standalone/.next/static 2>/dev/null || true
     cp -r public .next/standalone/public 2>/dev/null || true
+  fi
+
+  # Update the CLI itself if the repo has a newer version
+  if [ -f "$APP_DIR/bin/openvlt" ]; then
+    cp "$APP_DIR/bin/openvlt" "$OPENVLT_HOME/bin/openvlt"
+    chmod +x "$OPENVLT_HOME/bin/openvlt"
   fi
 
   echo -e "${DIM}Restarting...${NC}"

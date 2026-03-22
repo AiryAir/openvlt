@@ -33,6 +33,7 @@ import { InlineMath } from "@/lib/editor/inline-math"
 import { MermaidBlock } from "@/lib/editor/mermaid-block"
 import { InlineDatabase } from "@/lib/editor/inline-database"
 import { SyncedBlock } from "@/lib/editor/synced-block"
+import { NoNestedTables } from "@/lib/editor/no-nested-tables"
 import { useTabStore } from "@/lib/stores/tab-store"
 import { useShortcutAction } from "@/lib/stores/shortcuts-store"
 
@@ -222,6 +223,7 @@ export function NoteEditor({
       TableRow,
       TableCell,
       TableHeader,
+      NoNestedTables,
       TaskList,
       TaskItem.configure({ nested: true }),
       TaskListInputRule,
