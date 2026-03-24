@@ -778,6 +778,24 @@ function TreeItem({
   }
 
   async function handleRename() {
+    // Determine file extension suffix for notes (not folders)
+    const noteExtensions = [".excalidraw", ".canvas", ".md"]
+    let suffix: string | undefined
+    let baseName = node.name
+    if (node.type !== "folder") {
+      for (const ext of noteExtensions) {
+        if (node.name.endsWith(ext)) {
+          suffix = ext
+          baseName = node.name.slice(0, -ext.length)
+          break
+        }
+      }
+      // If no known extension was found on the name, default to .md for notes
+      if (!suffix) {
+        suffix = ".md"
+      }
+    }
+
     const otherNames = new Set(
       siblingNames
         .filter((n) => n !== node.name)
@@ -786,16 +804,18 @@ function TreeItem({
     const newName = await promptDialog({
       title: "Rename",
       description: `Rename "${node.name}" to:`,
-      defaultValue: node.name,
+      defaultValue: baseName,
+      suffix,
       validate: (value) => {
         const trimmed = value.trim()
         if (!trimmed) return "Name cannot be empty"
-        if (otherNames.has(trimmed.toLowerCase()))
+        const fullName = suffix ? trimmed + suffix : trimmed
+        if (otherNames.has(fullName.toLowerCase()) || otherNames.has(trimmed.toLowerCase()))
           return "An item with this name already exists"
         return null
       },
     })
-    if (!newName?.trim() || newName.trim() === node.name) return
+    if (!newName?.trim() || newName.trim() === baseName) return
     if (node.type === "folder") {
       await fetch(`/api/folders/${node.id}`, {
         method: "PUT",

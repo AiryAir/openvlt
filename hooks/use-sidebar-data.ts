@@ -102,14 +102,11 @@ export function useSidebarData() {
   const fetchTree = React.useCallback(async (mode?: string) => {
     const currentMode = mode ?? sidebarModeRef.current
     try {
-      let url: string
-      if (showAllRef.current) {
-        url = "/api/folders?showAll=true"
-      } else if (currentMode === "advanced") {
-        url = "/api/folders?mode=advanced"
-      } else {
-        url = "/api/folders"
-      }
+      const params = new URLSearchParams()
+      if (currentMode === "advanced") params.set("mode", "advanced")
+      if (showAllRef.current) params.set("showAll", "true")
+      const qs = params.toString()
+      const url = qs ? `/api/folders?${qs}` : "/api/folders"
       const res = await fetch(url)
       if (res.ok) {
         setHasVault(true)
