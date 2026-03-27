@@ -58,6 +58,7 @@ import { confirmDialog, promptDialog } from "@/lib/dialogs"
 import { useIsMobile } from "@/hooks/use-mobile"
 import type { User, BackupFrequency, BackupRun, SyncPairing, TwoFactorStatus } from "@/types"
 import { AISettingsTab } from "@/components/ai-settings"
+import { AdminSettingsTab } from "@/components/admin-settings"
 import { QRCodeSVG } from "qrcode.react"
 import { startRegistration } from "@simplewebauthn/browser"
 
@@ -128,7 +129,7 @@ export function SettingsPanel() {
 
   // Read active settings section from URL pathname (/settings/ai, /settings/data, etc.)
   const pathname = usePathname()
-  const validTabs = ["general", "account", "data", "sync", "shortcuts", "ai", "appearance", "about", "update"]
+  const validTabs = ["general", "account", "data", "sync", "shortcuts", "ai", "appearance", "about", "update", "admin"]
   const sectionFromPath = React.useMemo(() => {
     // Extract section from /settings/[section] — also handle legacy #hash
     const segments = pathname.split("/")
@@ -726,7 +727,16 @@ export function SettingsPanel() {
                         icon: ArrowDownCircleIcon,
                         label: "Update",
                       },
-                    ] as const
+                      ...(user?.isAdmin
+                        ? [
+                            {
+                              value: "admin" as const,
+                              icon: ShieldCheckIcon,
+                              label: "Admin",
+                            },
+                          ]
+                        : []),
+                    ]
                   ).map((tab) => (
                     <TabsTrigger
                       key={tab.value}
@@ -2144,6 +2154,13 @@ export function SettingsPanel() {
                 </div>
               </SectionCard>
             </TabsContent>
+
+            {/* ── Admin Tab ── */}
+            {user?.isAdmin && (
+              <TabsContent value="admin" className="space-y-6">
+                <AdminSettingsTab />
+              </TabsContent>
+            )}
             </div>
           </Tabs>
         </div>
