@@ -33,12 +33,38 @@ export class HandwriteTool extends StateNode {
     }
   }
 
-  private readonly COLOR_MAP: Record<string, string> = {
+  private static readonly COLOR_MAP_LIGHT: Record<string, string> = {
     black: "#1d1d1d", grey: "#9fa8b2", "light-violet": "#e085f4",
     violet: "#ae3ec9", blue: "#4465e9", "light-blue": "#4ba1f1",
     yellow: "#f1ac4b", orange: "#e16919", green: "#099268",
     "light-green": "#4cb05e", "light-red": "#f87777", red: "#e03131",
     white: "#FFFFFF",
+  }
+  private static readonly COLOR_MAP_DARK: Record<string, string> = {
+    black: "#e8e8e8", grey: "#9fa8b2", "light-violet": "#e085f4",
+    violet: "#ae3ec9", blue: "#4465e9", "light-blue": "#4ba1f1",
+    yellow: "#f1ac4b", orange: "#e16919", green: "#099268",
+    "light-green": "#4cb05e", "light-red": "#f87777", red: "#e03131",
+    white: "#1d1d1d",
+  }
+  private static readonly HIGHLIGHT_COLOR_LIGHT: Record<string, string> = {
+    yellow: "#fce5a6", orange: "#f9c9a0", red: "#f5b0b0",
+    "light-red": "#fcc5c5", blue: "#b8c8f7", "light-blue": "#b8dbf9",
+    violet: "#dbb8e8", "light-violet": "#f0c8fa", green: "#a0d9c4",
+    "light-green": "#b8e4bf", grey: "#d5d9dd", black: "#b0b0b0",
+    white: "#f8f8f8",
+  }
+  private static readonly HIGHLIGHT_COLOR_DARK: Record<string, string> = {
+    yellow: "#5c4820", orange: "#5c3518", red: "#5c2020",
+    "light-red": "#5c3030", blue: "#2a3560", "light-blue": "#254060",
+    violet: "#402858", "light-violet": "#503060", green: "#1a4838",
+    "light-green": "#254830", grey: "#3a3e42", black: "#585858",
+    white: "#2a2a2a",
+  }
+  private getColorMap(isHighlighter: boolean): Record<string, string> {
+    const isDark = this.editor.user.getIsDarkMode()
+    if (isHighlighter) return isDark ? HandwriteTool.HIGHLIGHT_COLOR_DARK : HandwriteTool.HIGHLIGHT_COLOR_LIGHT
+    return isDark ? HandwriteTool.COLOR_MAP_DARK : HandwriteTool.COLOR_MAP_LIGHT
   }
   private readonly SIZE_MAP: Record<string, number> = { xs: 0.75, s: 1.5, m: 3, l: 5, xl: 9 }
 
@@ -135,10 +161,24 @@ export class HandwriteTool extends StateNode {
       penType = preset.type || "pen"
     } catch {}
 
-    this.color = this.COLOR_MAP[colorName] || "#1d1d1d"
+    const colorMap = this.getColorMap(penType === "highlighter")
+    this.color = colorMap[colorName] || colorMap.black
     this.strokeWidth = this.SIZE_MAP[sizeName] || 3
     this.penType = penType
     this.opacity = penType === "highlighter" ? 0.35 : 1
+
+    // Set blend mode on wet ink canvas for highlighter
+    if (this.canvas) {
+      if (penType === "highlighter") {
+        const isDark = this.editor.user.getIsDarkMode()
+        this.canvas.style.mixBlendMode = isDark ? "lighten" : "darken"
+        this.canvas.style.opacity = ""
+        this.opacity = 1
+      } else {
+        this.canvas.style.mixBlendMode = ""
+        this.canvas.style.opacity = ""
+      }
+    }
 
     // Clear previous wet ink and resize canvas
     if (this.canvas && this.ctx) {
@@ -194,8 +234,8 @@ export class HandwriteTool extends StateNode {
       this.ctx.globalAlpha = this.opacity
       this.ctx.strokeStyle = this.color
       this.ctx.lineWidth = this.penType === "highlighter" ? Math.max(w, 12 * zoom) : w
-      this.ctx.lineCap = "round"
-      this.ctx.lineJoin = "round"
+      this.ctx.lineCap = this.penType === "highlighter" ? "square" : "round"
+      this.ctx.lineJoin = this.penType === "highlighter" ? "bevel" : "round"
 
       this.pointCount++
 
@@ -331,22 +371,37 @@ export class HandwriteTool extends StateNode {
       }
     }
 
+    // Normalize: shift origin to top-left of bounding box so all points
+    // are non-negative and the geometry at (0,0)-(w,h) matches the visual.
+    const shapeX = this.originX + this.minX
+    const shapeY = this.originY + this.minY
+    const normalizedPoints = this.points.map(p => ({
+      x: p.x - this.minX,
+      y: p.y - this.minY,
+      z: p.z,
+    }))
+
     // Create the final handwrite shape (no recognition match)
     this.editor.createShape({
       id: this.shapeId,
       type: "handwrite",
-      x: this.originX,
-      y: this.originY,
+      x: shapeX,
+      y: shapeY,
       props: {
         w: Math.max(1, this.maxX - this.minX),
         h: Math.max(1, this.maxY - this.minY),
         color: colorName,
         size: sizeName,
-        points: JSON.stringify(this.points),
+        points: JSON.stringify(normalizedPoints),
         penType: this.penType,
         isComplete: true,
       },
     })
+
+    // Highlighter always goes behind all pen strokes
+    if (this.penType === "highlighter") {
+      this.editor.sendToBack([this.shapeId])
+    }
 
     this.shapeId = "" as ReturnType<typeof createShapeId>
     this.points = []

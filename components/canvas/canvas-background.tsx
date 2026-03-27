@@ -23,6 +23,7 @@ interface CanvasBackgroundProps {
   background: BackgroundPattern
   pageCount: number
   lineSpacing?: number
+  isDark?: boolean
 }
 
 interface BgData {
@@ -181,23 +182,24 @@ export function CanvasBackground({
   background,
   pageCount,
   lineSpacing: lineSpacingProp,
+  isDark: isDarkProp,
 }: CanvasBackgroundProps) {
   const editor = useEditor()
 
   const screenBounds = editor.getViewportScreenBounds()
   const w = screenBounds.w || window.innerWidth
   const h = screenBounds.h || window.innerHeight
-  const isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+  const isDark = isDarkProp ?? false
 
   const data = computeBgData(x, y, z, pageSize, background, pageCount, lineSpacingProp, w, h, isDark)
 
   return (
     <svg className="tl-grid" aria-hidden="true" style={{ pointerEvents: "none" }}>
       {data.bgRect && (
-        <rect x={0} y={0} width={data.bgRect.w} height={data.bgRect.h} fill="#f0f0f0" />
+        <rect x={0} y={0} width={data.bgRect.w} height={data.bgRect.h} fill={isDark ? "#1e1e1e" : "#f0f0f0"} />
       )}
       {data.pageRects.map((r, i) => (
-        <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h} fill="#ffffff" stroke="#d1d5db" strokeWidth={1} />
+        <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h} fill={isDark ? "#2a2a2a" : "#ffffff"} stroke={isDark ? "#3a3a3a" : "#d1d5db"} strokeWidth={1} />
       ))}
       {data.marginPath && (
         <path d={data.marginPath} stroke={data.marginColor} strokeWidth={1} fill="none" />

@@ -150,6 +150,36 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
       // Enable grid so our custom background component renders
       editor.updateInstanceState({ isGridMode: true })
 
+      // Send all existing highlighter shapes to back so they're behind pen strokes
+      function enforceHighlighterOrder() {
+        const shapes = editor.getCurrentPageShapes()
+        const highlighters = shapes.filter(
+          (s: { type: string; props: { penType?: string } }) =>
+            s.type === "handwrite" && s.props.penType === "highlighter"
+        )
+        if (highlighters.length === 0) return
+        // Check if any highlighter has a higher index than any non-highlighter
+        const nonHighlighters = shapes.filter(
+          (s: { type: string; props: { penType?: string } }) =>
+            !(s.type === "handwrite" && s.props.penType === "highlighter")
+        )
+        if (nonHighlighters.length === 0) return
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const maxHighlighterIdx = Math.max(...highlighters.map((s: any) => s.index ?? ""))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const minNonHighlighterIdx = Math.min(...nonHighlighters.map((s: any) => s.index ?? ""))
+        if (maxHighlighterIdx > minNonHighlighterIdx) {
+          editor.sendToBack(highlighters.map((s: { id: string }) => s.id))
+        }
+      }
+      enforceHighlighterOrder()
+
+      // Re-enforce whenever shapes change (undo, redo, eraser splits, etc.)
+      editor.store.listen(() => {
+        // Debounce with rAF to avoid running mid-batch
+        requestAnimationFrame(enforceHighlighterOrder)
+      }, { source: "all", scope: "document" })
+
       // Default to handwrite tool — low smoothing for natural handwriting
       editor.setCurrentTool("handwrite")
 
@@ -724,6 +754,14 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
 
+  // Sync tldraw dark mode with app theme — instant switch
+  React.useEffect(() => {
+    const editor = editorRef.current
+    if (!editor) return
+    const colorScheme = resolvedTheme === "dark" ? "dark" : "light"
+    editor.user.updateUserPreferences({ colorScheme })
+  }, [resolvedTheme])
+
   // Save when settings change (pageSize, background, pageCount)
   React.useEffect(() => {
     const editor = editorRef.current
@@ -853,11 +891,12 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
   }, [pageSize])
 
   // Custom grid component that uses our page/background settings
+  const isDark = resolvedTheme === "dark"
   const components = React.useMemo(() => ({
     Grid: (props: { x: number; y: number; z: number; size: number }) => (
-      <CanvasBackground {...props} pageSize={pageSize} background={background} pageCount={pageCount} lineSpacing={customSpacing} />
+      <CanvasBackground {...props} pageSize={pageSize} background={background} pageCount={pageCount} lineSpacing={customSpacing} isDark={isDark} />
     ),
-  }), [pageSize, background, pageCount, customSpacing])
+  }), [pageSize, background, pageCount, customSpacing, isDark])
 
 
   // Track selected text-note shape for the style bar
@@ -1416,6 +1455,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
         // For each page gap and the areas above/below/left/right of pages,
         // render grey overlay divs
         const overlays: React.ReactNode[] = []
+        const maskBg = isDark ? "#1e1e1e" : "#f0f0f0"
 
         // Left of pages
         const pageLeftScreen = (0 + cx) * z
@@ -1423,7 +1463,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
           <div key="left" style={{
             position: "absolute", top: 0, left: 0, bottom: 0,
             width: Math.max(0, pageLeftScreen),
-            background: "#f0f0f0", pointerEvents: "none", zIndex: 2,
+            background: maskBg, pointerEvents: "none", zIndex: 2,
           }} />
         )
 
@@ -1433,7 +1473,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
           <div key="right" style={{
             position: "absolute", top: 0, right: 0, bottom: 0,
             left: Math.max(0, pageRightScreen),
-            background: "#f0f0f0", pointerEvents: "none", zIndex: 2,
+            background: maskBg, pointerEvents: "none", zIndex: 2,
           }} />
         )
 
@@ -1444,7 +1484,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
             position: "absolute", top: 0, left: Math.max(0, pageLeftScreen), right: 0,
             height: Math.max(0, firstPageTop),
             width: Math.max(0, pageRightScreen - pageLeftScreen),
-            background: "#f0f0f0", pointerEvents: "none", zIndex: 2,
+            background: maskBg, pointerEvents: "none", zIndex: 2,
           }} />
         )
 
@@ -1455,7 +1495,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
             position: "absolute", bottom: 0, left: Math.max(0, pageLeftScreen),
             top: Math.max(0, lastPageBottom),
             width: Math.max(0, pageRightScreen - pageLeftScreen),
-            background: "#f0f0f0", pointerEvents: "none", zIndex: 2,
+            background: maskBg, pointerEvents: "none", zIndex: 2,
           }} />
         )
 
@@ -1472,7 +1512,7 @@ export function CanvasEditor({ noteId, initialData, onEditorReady }: CanvasEdito
               top: clampedTop,
               width: Math.max(0, pageRightScreen - pageLeftScreen),
               height: clampedHeight,
-              background: "#f0f0f0", pointerEvents: "none", zIndex: 2,
+              background: maskBg, pointerEvents: "none", zIndex: 2,
             }} />
           )
         }

@@ -5,6 +5,7 @@ import {
   SVGContainer,
   TLBaseShape,
   Rectangle2d,
+  useEditor,
   type TLResizeInfo,
   type Geometry2d,
 } from "tldraw"
@@ -39,12 +40,44 @@ export type HandwriteShape = TLBaseShape<
 
 const SIZE_MAP: Record<string, number> = { xs: 0.75, s: 1.5, m: 3, l: 5, xl: 9 }
 
-const COLOR_MAP: Record<string, string> = {
+const COLOR_MAP_LIGHT: Record<string, string> = {
   black: "#1d1d1d", grey: "#9fa8b2", "light-violet": "#e085f4",
   violet: "#ae3ec9", blue: "#4465e9", "light-blue": "#4ba1f1",
   yellow: "#f1ac4b", orange: "#e16919", green: "#099268",
   "light-green": "#4cb05e", "light-red": "#f87777", red: "#e03131",
   white: "#FFFFFF",
+}
+
+const COLOR_MAP_DARK: Record<string, string> = {
+  ...COLOR_MAP_LIGHT,
+  black: "#e8e8e8",
+  white: "#1d1d1d",
+}
+
+// Highlighter colors: pre-blended pastels for use with darken/lighten blend
+// at full opacity. On light mode (darken), these sit between white and the
+// original color so they look like a translucent highlight without actual
+// transparency. On dark mode (lighten), darker tints that sit between the
+// dark background and the original color.
+const HIGHLIGHT_COLOR_LIGHT: Record<string, string> = {
+  yellow: "#fce5a6", orange: "#f9c9a0", red: "#f5b0b0",
+  "light-red": "#fcc5c5", blue: "#b8c8f7", "light-blue": "#b8dbf9",
+  violet: "#dbb8e8", "light-violet": "#f0c8fa", green: "#a0d9c4",
+  "light-green": "#b8e4bf", grey: "#d5d9dd", black: "#b0b0b0",
+  white: "#f8f8f8",
+}
+
+const HIGHLIGHT_COLOR_DARK: Record<string, string> = {
+  yellow: "#5c4820", orange: "#5c3518", red: "#5c2020",
+  "light-red": "#5c3030", blue: "#2a3560", "light-blue": "#254060",
+  violet: "#402858", "light-violet": "#503060", green: "#1a4838",
+  "light-green": "#254830", grey: "#3a3e42", black: "#585858",
+  white: "#2a2a2a",
+}
+
+function getColorMap(isDark: boolean, isHighlighter: boolean): Record<string, string> {
+  if (isHighlighter) return isDark ? HIGHLIGHT_COLOR_DARK : HIGHLIGHT_COLOR_LIGHT
+  return isDark ? COLOR_MAP_DARK : COLOR_MAP_LIGHT
 }
 
 /**
@@ -165,29 +198,58 @@ export class HandwriteShapeUtil extends ShapeUtil<HandwriteShape> {
   }
 
   override getGeometry(shape: HandwriteShape): Geometry2d {
+    // Compute actual bounds from points to handle legacy shapes where
+    // points can have negative coordinates (drawn left/up from origin)
+    let minX = 0, minY = 0, maxX = 0, maxY = 0
+    try {
+      const pts: { x: number; y: number }[] = JSON.parse(shape.props.points || "[]")
+      for (const p of pts) {
+        if (p.x < minX) minX = p.x
+        if (p.y < minY) minY = p.y
+        if (p.x > maxX) maxX = p.x
+        if (p.y > maxY) maxY = p.y
+      }
+    } catch {}
     return new Rectangle2d({
-      width: Math.max(1, shape.props.w),
-      height: Math.max(1, shape.props.h),
+      x: minX,
+      y: minY,
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
       isFilled: true,
     })
   }
 
+  override canCull() { return false }
   override canEdit() { return false }
   override canResize() { return false }
   override hideRotateHandle() { return true }
   override hideSelectionBoundsFg() { return true }
 
   override component(shape: HandwriteShape) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const editor = useEditor()
+    const isDark = editor.user.getIsDarkMode()
+
     const rawPoints: { x: number; y: number; z: number }[] = JSON.parse(
       shape.props.points || "[]"
     )
     if (rawPoints.length === 0) return null
 
-    const baseWidth = SIZE_MAP[shape.props.size] || SIZE_MAP.m
-    const color = COLOR_MAP[shape.props.color] || COLOR_MAP.black
     const isHighlighter = shape.props.penType === "highlighter"
-    const opacity = isHighlighter ? 0.35 : 1
+    const colorMap = getColorMap(isDark, isHighlighter)
+    const baseWidth = SIZE_MAP[shape.props.size] || SIZE_MAP.m
+    const color = colorMap[shape.props.color] || colorMap.black
     const hasPressure = hasPressureVariation(rawPoints)
+
+    const lineCap = isHighlighter ? "square" : "round"
+    const lineJoin = isHighlighter ? "bevel" : "round"
+    // Highlighter: darken blend at full opacity — overlapping same-color
+    // highlights are invisible (darken picks the same value), and pen strokes
+    // show through (darken picks the darker pen color).
+    // Colors are pre-lightened pastel versions so no transparency is needed.
+    const svgStyle: React.CSSProperties | undefined = isHighlighter
+      ? { mixBlendMode: isDark ? "lighten" : "darken" }
+      : undefined
 
     if (hasPressure) {
       // Pressure strokes: render segments grouped by stroke width
@@ -195,7 +257,7 @@ export class HandwriteShapeUtil extends ShapeUtil<HandwriteShape> {
       if (paths.length === 0) return null
 
       return (
-        <SVGContainer>
+        <SVGContainer style={svgStyle}>
           {paths.map((p, i) => (
             <path
               key={i}
@@ -203,9 +265,8 @@ export class HandwriteShapeUtil extends ShapeUtil<HandwriteShape> {
               fill="none"
               stroke={color}
               strokeWidth={p.width}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={opacity}
+              strokeLinecap={lineCap}
+              strokeLinejoin={lineJoin}
             />
           ))}
         </SVGContainer>
@@ -217,15 +278,14 @@ export class HandwriteShapeUtil extends ShapeUtil<HandwriteShape> {
       if (!d) return null
 
       return (
-        <SVGContainer>
+        <SVGContainer style={svgStyle}>
           <path
             d={d}
             fill="none"
             stroke={color}
             strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={opacity}
+            strokeLinecap={lineCap}
+            strokeLinejoin={lineJoin}
           />
         </SVGContainer>
       )

@@ -13,6 +13,17 @@ body {
   background-color: var(--background);
 }
 
+/* Override tldraw canvas background for dark mode */
+.dark .tl-background {
+  background-color: #1e1e1e !important;
+}
+.dark .tl-background__wrapper {
+  background-color: #1e1e1e !important;
+}
+.dark [data-tldraw] {
+  --tl-color-background: #1e1e1e;
+}
+
 /* Force text wrapping in AI chat sidebar at any width */
 [data-ai-chat] * {
   overflow-wrap: anywhere;
