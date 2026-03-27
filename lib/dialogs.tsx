@@ -49,23 +49,42 @@ export function confirmDialog(
     document.body.appendChild(container)
     const root = createRoot(container)
 
-    function cleanup() {
+    let resolved = false
+    let pendingValue: boolean | null = null
+
+    function finish() {
+      if (pendingValue === null) return
+      if (resolved) return
+      resolved = true
+      resolve(pendingValue)
       root.unmount()
       container.remove()
+      // Radix DismissableLayer sets body pointer-events to "none" on mount
+      // and restores on unmount — but force-unmounting skips the cleanup
+      document.body.style.pointerEvents = ""
     }
 
     function ConfirmImpl() {
       const [open, setOpen] = React.useState(true)
+      // When open transitions to false, wait for the exit animation then clean up
+      React.useEffect(() => {
+        if (!open && pendingValue !== null) {
+          const timer = setTimeout(finish, 300)
+          return () => clearTimeout(timer)
+        }
+      }, [open])
+
+      function settle(value: boolean) {
+        if (pendingValue !== null) return
+        pendingValue = value
+        setOpen(false)
+      }
 
       return (
         <AlertDialog
           open={open}
           onOpenChange={(v) => {
-            if (!v) {
-              setOpen(false)
-              resolve(false)
-              cleanup()
-            }
+            if (!v) settle(false)
           }}
         >
           <AlertDialogContent>
@@ -78,22 +97,12 @@ export function confirmDialog(
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel
-                onClick={() => {
-                  setOpen(false)
-                  resolve(false)
-                  cleanup()
-                }}
-              >
+              <AlertDialogCancel onClick={() => settle(false)}>
                 {opts.cancelLabel || "Cancel"}
               </AlertDialogCancel>
               <AlertDialogAction
                 variant={opts.destructive ? "destructive" : "default"}
-                onClick={() => {
-                  setOpen(false)
-                  resolve(true)
-                  cleanup()
-                }}
+                onClick={() => settle(true)}
               >
                 {opts.confirmLabel || "Continue"}
               </AlertDialogAction>
@@ -140,9 +149,17 @@ export function promptDialog(
     document.body.appendChild(container)
     const root = createRoot(container)
 
-    function cleanup() {
+    let resolved = false
+    let pendingValue: string | null | undefined = undefined
+
+    function finish() {
+      if (pendingValue === undefined) return
+      if (resolved) return
+      resolved = true
+      resolve(pendingValue)
       root.unmount()
       container.remove()
+      document.body.style.pointerEvents = ""
     }
 
     function PromptImpl() {
@@ -157,17 +174,26 @@ export function promptDialog(
         requestAnimationFrame(() => inputRef.current?.select())
       }, [])
 
+      React.useEffect(() => {
+        if (!open && pendingValue !== undefined) {
+          const timer = setTimeout(finish, 300)
+          return () => clearTimeout(timer)
+        }
+      }, [open])
+
+      function settle(v: string | null) {
+        if (pendingValue !== undefined) return
+        pendingValue = v
+        setOpen(false)
+      }
+
       function handleSubmit() {
         if (validationError) return
-        setOpen(false)
-        resolve(value)
-        cleanup()
+        settle(value)
       }
 
       function handleCancel() {
-        setOpen(false)
-        resolve(null)
-        cleanup()
+        settle(null)
       }
 
       return (
